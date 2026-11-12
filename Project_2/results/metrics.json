@@ -1,0 +1,138 @@
+{
+ "cutoff": "2024-07-19",
+ "n_vehicles": 1,
+ "n_train_vehicles": 1,
+ "n_test_vehicles": 1,
+ "nowcast": {
+  "n": 4,
+  "models": {
+   "naive_last": {
+    "1-7d": {
+     "n": 4,
+     "MAE_km": 269.25,
+     "MAPE_odometer": 0.026543468610791227,
+     "WAPE_distance": 1.0
+    },
+    "all": {
+     "n": 4,
+     "MAE_km": 269.25,
+     "MAPE_odometer": 0.026543468610791227,
+     "WAPE_distance": 1.0
+    }
+   },
+   "mean_rate": {
+    "1-7d": {
+     "n": 4,
+     "MAE_km": 111.61880905005273,
+     "MAPE_odometer": 0.012064799744715232,
+     "WAPE_distance": 0.41455453686184857
+    },
+    "all": {
+     "n": 4,
+     "MAE_km": 111.61880905005273,
+     "MAPE_odometer": 0.012064799744715232,
+     "WAPE_distance": 0.41455453686184857
+    }
+   },
+   "rent_aware": {
+    "1-7d": {
+     "n": 4,
+     "MAE_km": 108.04054620177635,
+     "MAPE_odometer": 0.011908335399483983,
+     "WAPE_distance": 0.4012647955497729
+    },
+    "all": {
+     "n": 4,
+     "MAE_km": 108.04054620177635,
+     "MAPE_odometer": 0.011908335399483983,
+     "WAPE_distance": 0.4012647955497729
+    }
+   }
+  }
+ },
+ "forecast": {
+  "n": 4,
+  "models": {
+   "naive_last": {
+    "1-7d": {
+     "n": 1,
+     "MAE_km": 315.0,
+     "MAPE_odometer": 0.03888888888888889,
+     "WAPE_distance": 1.0
+    },
+    "15-30d": {
+     "n": 1,
+     "MAE_km": 3129.0,
+     "MAPE_odometer": 0.28669598680593733,
+     "WAPE_distance": 1.0
+    },
+    "31-60d": {
+     "n": 2,
+     "MAE_km": 3638.5,
+     "MAPE_odometer": 0.31841134060824583,
+     "WAPE_distance": 1.0
+    },
+    "all": {
+     "n": 4,
+     "MAE_km": 2680.25,
+     "MAPE_odometer": 0.24060188922782946,
+     "WAPE_distance": 1.0
+    }
+   },
+   "mean_rate": {
+    "1-7d": {
+     "n": 1,
+     "MAE_km": 256.060606060606,
+     "MAPE_odometer": 0.031612420501309385,
+     "WAPE_distance": 0.8128908128908127
+    },
+    "15-30d": {
+     "n": 1,
+     "MAE_km": 1596.575757575758,
+     "MAPE_odometer": 0.1462869486508849,
+     "WAPE_distance": 0.5102511209893762
+    },
+    "31-60d": {
+     "n": 2,
+     "MAE_km": 1634.560606060606,
+     "MAPE_odometer": 0.1431497159542296,
+     "WAPE_distance": 0.4492402380268259
+    },
+    "all": {
+     "n": 4,
+     "MAE_km": 1280.439393939394,
+     "MAPE_odometer": 0.11604970026516337,
+     "WAPE_distance": 0.4777313287713437
+    }
+   },
+   "rent_aware": {
+    "1-7d": {
+     "n": 1,
+     "MAE_km": 271.0760941325407,
+     "MAPE_odometer": 0.03346618446080749,
+     "WAPE_distance": 0.8605590289921926
+    },
+    "15-30d": {
+     "n": 1,
+     "MAE_km": 1986.9784474460448,
+     "MAPE_odometer": 0.1820577650216277,
+     "WAPE_distance": 0.6350202772278827
+    },
+    "31-60d": {
+     "n": 2,
+     "MAE_km": 2145.0872005063648,
+     "MAPE_odometer": 0.1877996293409574,
+     "WAPE_distance": 0.5895526179761893
+    },
+    "all": {
+     "n": 4,
+     "MAE_km": 1637.0572356478287,
+     "MAPE_odometer": 0.1477808020410875,
+     "WAPE_distance": 0.6107852758689781
+    }
+   }
+  }
+ },
+ "flags": {},
+ "starter_flags_on_raw_rows": 12
+}
