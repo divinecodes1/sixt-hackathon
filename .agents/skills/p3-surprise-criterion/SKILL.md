@@ -56,7 +56,13 @@ python3 score.py ../results/c2_dev_pairs_cv_run1.csv ../criterion2/c2_dev_pairs.
 ```
 Outputs: `Project_3/results/c2_dev_pairs_cv_run{1,2}.csv` and `c2_dev_pairs_report.txt` (no baseline in that report; the baseline comparison is the score.py call above).
 
-With few examples and few source ids, cross-validation folds are tiny: say so next to the numbers.
+With few examples and few source ids, cross-validation folds are tiny: say so next to the numbers. Rehearsed 13 Nov
+on a mock (12 cases, 2 source ids): one of the 3 folds is empty (harmless, no crash) and a fold that sees only 3
+examples may pick number rule `hint` instead of `off`; the whole step took about 20 s. A 12-case score is not
+evidence of quality: report n next to it.
 
 ## 5. Record
-Fill the "Surprise criterion" table in `starter_pack/RECIPE.md` and the criterion 2 rows in `SUBMISSION.md`. Remind the user that code freeze is 16:00 (see the p3-freeze-and-submit skill).
+Fill the "Surprise criterion" table in `starter_pack/RECIPE.md` and the criterion 2 rows in `SUBMISSION.md`.
+Save the baseline comparison as `results/c2_vs_baseline_report.txt` (the score.py call above, `| tee`) and rebuild the
+slides: `cd Project_3/submission && python3 make_slides.py && google-chrome --headless --no-pdf-header-footer
+--print-to-pdf="$PWD/slides.pdf" "file://$PWD/slides.html"` (they read `c2_dev_pairs_report.txt` and that file). Remind the user that code freeze is 16:00 (see the p3-freeze-and-submit skill).

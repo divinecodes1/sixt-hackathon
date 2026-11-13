@@ -155,6 +155,10 @@ Most of the remaining errors are in the mock labels, not the judge: on the fille
 daily rate" edits labelled harmless. Raw catch is 1.000 on both. The judge does flag openers when the criterion is
 about them, so the invariance wording is not secretly criterion-1-specific.
 
+Handoff drill (filler mock as if it had just arrived, following the `p3-surprise-criterion` skill): store, validate,
+`prepare()` check, CV twice and baseline took about 20 s of compute; each mock run took 77 s. With 2 source ids one
+of the 3 folds is empty (harmless), and a fold that sees only 3 examples may pick number rule `hint`.
+
 ## What did not work
 - **Evidence switches did not help** on the fast subset (base 0.716): `C_evidence` 0.700, `H_hedge` 0.700,
   `V_deanchor` 0.680. All four together (`CKHV`) scored lowest on both subsets it ran on. They stay off.

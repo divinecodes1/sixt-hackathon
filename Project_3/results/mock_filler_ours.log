@@ -1,3 +1,6 @@
 final_judge: number rule = off, 8 examples
   judged 25/90 replies
   judged 50/90 replies
+  judged 75/90 replies
+  judged 90/90 replies
+wrote 65 verdict rows to ../results/mock_filler_ours.csv
