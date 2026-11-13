@@ -1,9 +1,11 @@
 # Submission: Project 3, team Divinecodes
 
-> **Status (13 Nov, 14:35):** shipped judge = `VERIFY_WITNESS` + `TRUST_VERIFY_REJECT` (+ a coverage guard at 14:20,
+> **Status (13 Nov, 16:23):** shipped judge = `VERIFY_WITNESS` + `TRUST_VERIFY_REJECT` (+ a coverage guard at 14:20,
 > see below). Dev: criterion 1 **0.845** (0.846 in a second pair of runs), criterion 2 (surprise) **0.883** (0.863 in two
-> other pairs), same verdict 1.000 within each pair of runs. Rules audit at 14:30: no rule broken. Still open: the hidden-set runs (16:00). Every number
-> here comes from `score.py`; nothing is estimated.
+> other pairs), same verdict 1.000 within each pair of runs. Rules audit at 14:30: no rule broken. All four hidden-set
+> verdict CSVs are complete: 291 cases for criterion 1 and 311 for criterion 2, with 100% agreement between the two
+> runs of each criterion. Hidden scores are not reported because the organizers do not provide ground-truth labels.
+> Every performance number here comes from `score.py`; nothing is estimated.
 >
 > **Code freeze (13 Nov, 15:46):** `starter_pack/final_judge.py` is frozen as last changed in commit `c331641` (14:30, comments only), sha256 `d6673c0469e4fd01…`. The scored runs use exactly this file; it is not changed after the freeze.
 >
@@ -79,7 +81,7 @@ organizers.
 | 2 (surprise) | same code, earlier pair of runs (14:00) | 0.863 | 0.833 | 0.895 | 0.771 | 1.000 |
 | 2 (surprise) | same + coverage guard, third pair of runs (14:21) | 0.863 | 0.833 | 0.895 | 0.771 | 1.000 |
 
-Criterion 2 (surprise, "does the reply state the policy correctly?"): 73 labelled pairs from `starter_pack/surprise/` (upstream commit 0cb5c94), 9 source replies, 3-fold CV grouped by source; `prepare()` chose number rule `verdict`. Small set: one case moves a type by 10 points.
+Criterion 2 (surprise, "does the reply state the policy correctly?"): 73 labelled pairs from `criterion2/` (upstream commit 0cb5c94), 9 source replies, 3-fold CV grouped by source; `prepare()` chose number rule `verdict`. Small set: one case moves a type by 10 points.
 
 Baseline per edit type (catch): condition_removal 0.067, hedge_removal 0.500, wrong_number 0.800,
 wrong_policy_detail 1.000. Keep: sentence_reorder 0.733, filler_padding 0.800, translation 0.833,
@@ -178,7 +180,7 @@ opener kept, a typed "always … guaranteed" reply failed), the surprise criteri
 lines are written from what the page showed; the voice is Piper, generated locally.
 
 [`submission/slides.pdf`](submission/slides.pdf) (5 slides, the required deliverable): problem, insight, architecture, results from the
-`score.py` reports, and what it means for SIXT; speaker notes in [`submission/speaker_notes.md`](submission/speaker_notes.md).
+`score.py` reports, and what it means for SIXT.
 Local demo: `python3 demo/server.py` (or `--mock` offline), then http://127.0.0.1:8765.
 
 ## Next steps
