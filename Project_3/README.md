@@ -1,5 +1,56 @@
 # Project 3: Judge the Judge — a recipe for building LLM judges you can trust
 
+> ## Team Divinecodes: our submission
+>
+> | | |
+> |---|---|
+> | **Write-up** | [`SUBMISSION.md`](SUBMISSION.md): problem, approach, models, results, how to run |
+> | **Recipe** | [`starter_pack/RECIPE.md`](starter_pack/RECIPE.md) · design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+> | **Final judge** | [`starter_pack/final_judge.py`](starter_pack/final_judge.py), frozen at 16:00 |
+> | **Scored runs** | `submission/criterion{1,2}_run{1,2}.csv` (pushed by 16:45) |
+> | **Slides** | [`submission/slides.pdf`](submission/slides.pdf) (5 slides) · [speaker notes](submission/speaker_notes.md) |
+> | **Video** | [`submission/demo_narrated.mp4`](submission/demo_narrated.mp4) (walkthrough with voice-over, live verdicts) |
+> | **Live demo** | https://divinecodes-judge-the-judge.vercel.app (the frozen judge on real `claude-haiku-4.5`) |
+>
+> **Idea:** a judge that reads one reply cannot see what is missing, so we make the absence explicit.
+>
+> 1. **Code rule:** a number not found in the policy fails the reply, but only if `prepare()` confirms the rule never
+>    fires on a pass example of the current criterion (otherwise it becomes a hint or switches off).
+> 2. **Call 1:** claim by claim, list every condition and hedge the policy attaches and mark it kept or dropped (JSON);
+>    code computes the verdict.
+> 3. **Call 2 (suspected fails only):** must quote the reply's exact violating words and name a concrete misleading
+>    case; code checks the quote. If it answers every finding and proves none, the reply passes.
+> 4. **Call 3:** holistic fallback only when call 2 is unreadable or incomplete (1.57 calls per reply on dev).
+>
+> One reply per call, no state, nothing criterion-specific hard-coded, at most 3 calls, `claude-haiku-4.5` at
+> temperature 0, no response cache.
+>
+> **Dev results** (grouped 3-fold cross-validation, `score.py`; combined / catch / keep):
+>
+> | Criterion | Baseline | Ours |
+> |---|---|---|
+> | 1 · over-promise | 0.697 / 0.592 / 0.847 | **0.845 / 0.762 / 0.949** |
+> | 2 · surprise, "states the policy correctly" | 0.652 / 0.600 / 0.715 | **0.883 / 0.867 / 0.900** |
+>
+> Same verdict across two runs: 1.000 on both criteria. Dropped-condition catch on criterion 1: 0.067 → 0.667.
+> Full tables, per edit type and language, and the honest caveats are in [`SUBMISSION.md`](SUBMISSION.md).
+>
+> **Run it**
+> ```bash
+> cd starter_pack && python3 -m unittest test_final_judge -v && python3 offline_rule_check.py && cd ..   # no key needed
+> cp .env.example .env && set -a && . ./.env && set +a    # JUDGE_LLM_BASE_URL, JUDGE_LLM_API_KEY, JUDGE_LLM_MODEL=claude-haiku-4.5
+> bash run_dev.sh                                          # dev: 3-fold CV, two runs, scored vs baseline -> results/
+> bash run_submission.sh <hidden_c1.jsonl> <CRITERION2.md> <dev_pairs_c2.jsonl> <hidden_c2.jsonl>   # -> submission/
+> python3 demo/server.py                                   # local UI at http://127.0.0.1:8765 (--mock for offline)
+> ```
+>
+> **What's where:** `starter_pack/` judge, tests and organizer tools · `criterion2/` the surprise criterion and its
+> labelled pairs · `mock_criteria/` two rehearsal criteria · `results/` every scored run, trace and the experiments
+> log · `demo/` + `api/` local and Vercel demo · `dev_tools/` experiment and gateway helpers · `docs/` architecture
+> and research notes · `submission/` deliverables.
+>
+> *Below: the organizers' original brief.*
+
 **Project owner:** Jigyasa Singhal
 
 **Questions before the hackathon:** email the project owner directly: jigyasa.singhal@sixt.com. On the day, ask on site.
@@ -109,6 +160,9 @@ all show up.
 - **Either** a 1-minute demo video (`submission/demo.mp4`, under 50 MB) **or** up to 5 slides (`submission/slides.pdf`).
 
 ## Local UI demo
+
+Hosted version: https://divinecodes-judge-the-judge.vercel.app (same `demo/server.py`, served by `api/index.py` on
+Vercel; the key is a Vercel environment variable and never reaches the browser).
 
 Run the real frozen judge through the local UI (the key remains server-side and the server binds to localhost):
 
