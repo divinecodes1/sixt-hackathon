@@ -19,3 +19,5 @@ Every number below is produced by score.py.
 | 11-13 12:13 | W_witness (run 1 only; scored 12:17) | dev (dev_pairs.jsonl) | 0.850 | 0.813 | 0.891 | 0.767 | n/a | n/a | call 2 confirms only with the reply's exact words + a concrete case; CSV kept in commit 821ebd8 |
 | 11-13 12:21 | W_witness | dev (dev_pairs.jsonl) | 0.850 | 0.813 | 0.891 | 0.767 | 1.000 | 1.88 | call 2 confirms only with the reply's exact words + a concrete case: fewer false confirms on correct originals |
 | 11-13 12:33 | shipped default (VERIFY_WITNESS, run_dev.sh) | dev (dev_pairs.jsonl) | 0.850 | 0.813 | 0.891 | 0.772 | 0.991 | 1.88 | 441 + 436 calls, 1 parse failure per run, model claude-haiku-4.5 |
+| 11-13 12:51 | J_adjudicate | dev (dev_pairs.jsonl) | 0.833 | 0.795 | 0.876 | 0.732 | 1.000 | 1.89 | call 3 weighs both reviewers' arguments instead of judging afresh |
+| 11-13 12:57 | WX | dev (dev_pairs.jsonl) | 0.832 | 0.800 | 0.867 | 0.735 | 1.000 | 1.84 | witness + labelled examples in call 2 |

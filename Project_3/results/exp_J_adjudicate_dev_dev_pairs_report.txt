@@ -1,0 +1,25 @@
+cases: 226
+COMBINED (the score)       0.833   (baseline 0.697, delta +0.137)
+macro catch                0.795   (baseline 0.592, delta +0.203)
+macro keep                 0.876   (baseline 0.847, delta +0.029)
+kappa vs construction      0.732   (baseline 0.531, delta +0.201)
+consistency (2 runs)       same verdict 1.000, kappa 1.000  (n=235 replies)
+micro: catch 0.791  keep 0.836  raw catch 0.891  raw stability 0.888  original pass 0.881
+
+per edit type              n   catch   keep  raw_stab
+  condition_removal         30  0.767    n/a    n/a
+  filler_padding            15    n/a  0.933  1.000
+  hedge_removal             20  0.800    n/a    n/a
+  padding_removal            5    n/a  1.000  1.000
+  polite_opener             30    n/a  0.867  0.900
+  sentence_reorder          30    n/a  0.800  0.867
+  translation               36    n/a  0.778  0.833
+  wrong_number              35  0.771    n/a    n/a
+  wrong_policy_detail       25  0.840    n/a    n/a
+
+per lang            catch   keep  combined
+  de                   0.909  0.920  0.915
+  en                   0.682  0.688  0.685
+  es                   0.864  0.840  0.852
+  fr                   0.727  0.840  0.780
+  it                   0.773  0.840  0.805
