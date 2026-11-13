@@ -58,7 +58,7 @@ The LLM keeps everything else: conditions, hedges, scope, policy details, and th
    attaches makes the statement stronger, not briefer", so it does not explain real omissions away.
    **Shipped 12:25: `VERIFY_WITNESS = True`.** Call 2 confirms only if it copies the reply's exact words that violate
    the criterion and names one concrete case where a reader is misled; code checks the words are in the reply, and an
-   unproven confirm goes to call 3.
+   unproven confirm counts as a rejection (it went to call 3 until 14:05; with `TRUST_VERIFY_REJECT` the reply passes).
    **Shipped 14:05: `TRUST_VERIFY_REJECT = True`** (added after the surprise criterion arrived, disclosed): if call 2
    answers every finding and proves none, the reply passes; call 3 runs only when call 2's answer is unreadable or
    leaves a finding unanswered (guard added 14:20; in the 14:03 traces call 2 always answered every finding, so the

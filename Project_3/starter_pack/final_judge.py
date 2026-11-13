@@ -13,7 +13,8 @@ Recipe (same code for every criterion; only --criterion, --policy and --dev chan
      call 2  Only if call 1 found a candidate violation: a fresh-context verifier confirms or rejects each finding.
              (VERIFY_WITNESS, on since 12:25: a confirm counts only with the reply's exact words + a concrete case.)
              (SECOND_LOOK, off by default: also when call 1 passed but its own fields record a policy difference.)
-     call 3  Only if calls 1 and 2 disagree: a holistic judgment with examples breaks the tie (ADJUDICATE, off by
+     call 3  Only if call 2's answer is unreadable or leaves a finding unanswered (TRUST_VERIFY_REJECT, on since
+             14:05; off: whenever calls 1 and 2 disagree): a holistic judgment with examples (ADJUDICATE, off by
              default: it sees both reviewers' arguments).
 Design document: ../docs/ARCHITECTURE.md
 
@@ -739,7 +740,7 @@ def judge(question: str, reply: str, lang: str, criterion: str, policy: str) -> 
     verify = _parse_json(_ask(t, system2, user2 + "\n\n" + instr2, prefill=prefill))
     decisions = [d for d in (verify or {}).get("findings") or [] if isinstance(d, dict)]
     call1 = [f for f in findings if f["source"] == "call1"]
-    if VERIFY_WITNESS and not VERIFY_DEANCHOR:  # unproven confirms count as rejections: call 3 decides
+    if VERIFY_WITNESS and not VERIFY_DEANCHOR:  # unproven confirms count as rejections
         decisions = [d if _witnessed(d, reply) or not _confirmed(d) else dict(d, decision="rejected_unwitnessed")
                      for d in decisions]
     if os.environ.get("JUDGE_TRACE_REASONS", "") not in ("", "0"):  # diagnostics only; contains reply quotes
