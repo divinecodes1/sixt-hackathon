@@ -1,0 +1,4 @@
+2 variant(s) x 2 run(s): 940 replies to judge, 1-3 LLM calls each
+  base        current final_judge.py
+  S_second_look call 2 re-checks passes whose own fields show a policy difference
+| 11-13 11:23 | base | dev (dev_pairs.jsonl) | 0.754 | 0.750 | 0.758 | 0.623 | 0.974 | 1.73 | current final_judge.py |

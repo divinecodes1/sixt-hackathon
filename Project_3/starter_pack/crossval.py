@@ -35,25 +35,36 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--out", required=True)
     ap.add_argument("--folds", type=int, default=3)
     ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--examples", default=None,
+                    help="example pool (default: the --pairs file). Each fold gets the pool's cases whose source "
+                         "reply is not in that fold, so a small scored subset keeps the full set's examples.")
     a = ap.parse_args(argv)
     criterion = open(a.criterion, encoding="utf-8").read()
     policy = open(a.policy, encoding="utf-8").read()
     cases = run_judge._jsonl(a.pairs)
     folds = folds_by_source(cases, a.folds)
+    pool = run_judge._jsonl(a.examples) if a.examples else None
     verdicts: dict[str, tuple[str, str]] = {}
+    totals: dict = {}  # run_judge reloads the judge per fold (fresh STATS), so sum the folds here
     for i, fold in enumerate(folds):
-        examples = [c for j, f in enumerate(folds) if j != i for c in f]
+        if pool is None:
+            examples = [c for j, f in enumerate(folds) if j != i for c in f]
+        else:  # no leakage: drop every pool case built from a source reply that is scored in this fold
+            held_out = {c["source_id"] for c in fold}
+            examples = [c for c in pool if c["source_id"] not in held_out]
         print(f"fold {i + 1}/{len(folds)}: {len(fold)} cases scored, {len(examples)} example cases", file=sys.stderr)
         verdicts.update(run_judge.run(a.judge, fold, criterion, policy, examples, workers=a.workers, progress=True))
+        fold_stats = getattr(sys.modules.get("contestant_judge"), "STATS", None)
+        for k, v in (fold_stats or {}).items():
+            totals[k] = (totals.get(k, set()) | v) if isinstance(v, set) else totals.get(k, 0) + v
     with open(a.out, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["case_id", "original", "edited"])
         for cid in sorted(verdicts):
             w.writerow([cid, *verdicts[cid]])
     print(f"wrote {len(verdicts)} verdict rows to {a.out}")
-    mod = sys.modules.get("contestant_judge")
-    if mod is not None and hasattr(mod, "STATS"):
-        s = mod.STATS
+    if totals:
+        s = totals
         print(f"LLM calls {s['calls']}, parse failures {s['parse_failures']}, rule fails {s['rule_fail']}, "
               f"models reported by the endpoint: {sorted(s['models'])}", file=sys.stderr)
         if s.get("temperature_dropped"):

@@ -1,0 +1,12 @@
+8 variant(s) x 1 run(s): 1216 replies to judge, 1-3 LLM calls each
+  C_evidence  kept conditions must quote the reply; unproven ones go to call 2
+  V_deanchor  call 2 sees where to look, not the first reviewer's conclusion
+  H_hedge     certainty from the original words; quantities to scope; gloss last
+  K_clauses   numbered policy clauses; cited clause text checked in code
+  P_prefill   prefilled <json> removes preambles and parse failures
+  R_hint      rule as hint only: fewer false fails on stricter numbers
+  E_contrast  minimal-pair examples make the pass/fail boundary visible
+  J_adjudicate call 3 weighs both reviewers' arguments instead of judging afresh
+| 11-13 11:14 | C_evidence | dev (dev_pairs_fast.jsonl) | 0.700 | 0.733 | 0.670 | 0.587 | n/a | 1.81 | kept conditions must quote the reply; unproven ones go to call 2 |
+| 11-13 11:26 | V_deanchor | dev (dev_pairs_fast.jsonl) | 0.680 | 0.683 | 0.677 | 0.530 | n/a | 1.80 | call 2 sees where to look, not the first reviewer's conclusion |
+| 11-13 11:40 | H_hedge | dev (dev_pairs_fast.jsonl) | 0.700 | 0.750 | 0.657 | 0.552 | n/a | 1.72 | certainty from the original words; quantities to scope; gloss last |

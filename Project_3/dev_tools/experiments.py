@@ -6,7 +6,7 @@ appended to results/experiments.md; pick a winner there, then set it in final_ju
 
     cd Project_3/starter_pack
     python3 ../dev_tools/experiments.py --dry                                  # list variants, count replies
-    python3 ../dev_tools/experiments.py --variants base R_hint E_contrast      # fast subset (default)
+    python3 ../dev_tools/experiments.py --variants base R_hint E_contrast      # 30-case screen (default)
     python3 ../dev_tools/experiments.py --variants base P_prefill --pairs dev_pairs.jsonl --repeat
     python3 ../dev_tools/experiments.py --variants base R_hint --stress        # also the stress set
 
@@ -74,7 +74,8 @@ def score(verdicts: str, pairs: str, repeat: str | None) -> dict:
             "same": get(r"same verdict ([\d.]+)"), "report": out}
 
 
-def run_one(judge: str, pairs: str, out: str, workers: int, stress: bool) -> tuple[float, str]:
+def run_one(judge: str, pairs: str, out: str, workers: int, stress: bool,
+            examples: str | None = None) -> tuple[float, str]:
     if stress:
         cmd = [sys.executable, "run_judge.py", "--judge", judge, "--pairs", pairs, "--criterion",
                "JUDGE1_CRITERION.md", "--policy", "policy.md", "--dev", "dev_pairs.jsonl", "--out", out,
@@ -82,6 +83,8 @@ def run_one(judge: str, pairs: str, out: str, workers: int, stress: bool) -> tup
     else:
         cmd = [sys.executable, "crossval.py", "--judge", judge, "--pairs", pairs, "--criterion", "JUDGE1_CRITERION.md",
                "--policy", "policy.md", "--out", out, "--workers", str(workers)]
+        if examples and os.path.abspath(examples) != os.path.abspath(pairs):
+            cmd += ["--examples", examples]
     env = {k: v for k, v in os.environ.items() if k != "JUDGE_LLM_CACHE"}
     p = subprocess.run(cmd, cwd=STARTER, capture_output=True, text=True, env=env)
     if p.returncode:
@@ -99,13 +102,28 @@ def replies(pairs: str) -> int:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--variants", nargs="+", default=["base"], choices=sorted(VARIANTS))
-    ap.add_argument("--pairs", default="dev_pairs_fast.jsonl")
+    ap.add_argument("--pairs", default="dev_pairs_30.jsonl",
+                    help="scored cases (default: 30-case stratified screen, see make_subset.py)")
+    ap.add_argument("--examples", default="dev_pairs.jsonl",
+                    help="example pool for cross-validation (held-out sources removed per fold)")
     ap.add_argument("--stress", action="store_true", help="also score each variant on the stress set")
     ap.add_argument("--repeat", action="store_true", help="run twice to measure consistency")
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--results", default=RESULTS, help="output folder (default Project_3/results)")
     ap.add_argument("--dry", action="store_true")
+    ap.add_argument("--combine", nargs="+", metavar="VARIANT",
+                    help="also run one variant that merges these variants' settings (named combo_<a>+<b>...)")
     a = ap.parse_args()
+    if a.combine:
+        merged: dict = {}
+        for v in a.combine:
+            for key, value in VARIANTS[v][0].items():
+                if merged.get(key, value) != value:
+                    sys.exit(f"--combine: {v} sets {key}={value}, another variant sets {merged[key]}")
+                merged[key] = value
+        name = "combo_" + "+".join(a.combine)
+        VARIANTS[name] = (merged, "combined: " + ", ".join(f"{k}={v}" for k, v in merged.items()))
+        a.variants = [v for v in a.variants if v != name] + [name]
     pairs = os.path.join(STARTER, a.pairs) if not os.path.isabs(a.pairs) else a.pairs
     sets = [("dev", pairs, False)] + ([("stress", STRESS, True)] if a.stress else [])
     n_runs = 2 if a.repeat else 1
@@ -133,12 +151,13 @@ def main() -> None:
                 outs, calls = [], 0
                 for run in range(1, n_runs + 1):
                     out = os.path.join(res_dir, f"{prefix}{v}_{set_name}_{os.path.basename(set_path)[:-6]}_run{run}.csv")
-                    c, _ = run_one(os.path.basename(judge), set_path, out, a.workers, is_stress)
+                    c, _ = run_one(os.path.basename(judge), set_path, out, a.workers, is_stress,
+                                   os.path.join(STARTER, a.examples))
                     calls += c
                     outs.append(out)
                 m = score(outs[0], set_path, outs[1] if len(outs) > 1 else None)
                 per = f"{calls / (replies(set_path) * n_runs):.2f}" if calls >= 0 else "n/a"
-                report = os.path.join(res_dir, f"{prefix}{v}_{set_name}_report.txt")
+                report = os.path.join(res_dir, f"{prefix}{v}_{set_name}_{os.path.basename(set_path)[:-6]}_report.txt")
                 open(report, "w", encoding="utf-8").write(m["report"])
                 row = (f"| {dt.datetime.now():%m-%d %H:%M} | {v} | {set_name} ({os.path.basename(set_path)}) | "
                        f"{m['combined']} | {m['catch']} | {m['keep']} | {m['kappa']} | "
