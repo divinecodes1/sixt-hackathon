@@ -5,6 +5,8 @@
 > other pairs), same verdict 1.000 within each pair of runs. Rules audit at 14:30: no rule broken. Still open: the hidden-set runs (16:00). Every number
 > here comes from `score.py`; nothing is estimated.
 >
+> **Code freeze (13 Nov, 15:46):** `starter_pack/final_judge.py` is frozen as last changed in commit `c331641` (14:30, comments only), sha256 `d6673c0469e4fd01…`. The scored runs use exactly this file; it is not changed after the freeze.
+>
 > **Change history:** `TRUST_VERIFY_REJECT` (14:05) came from our error analysis of the criterion-2 dev pairs
 > (`results/c2_error_analysis.md`), which showed call 3 overturning correct call-2 rejections. It is generic (nothing
 > criterion-specific) and was measured on both criteria before shipping; before it, criterion 2 scored 0.776.
