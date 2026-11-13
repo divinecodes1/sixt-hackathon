@@ -1,0 +1,21 @@
+{
+  "input": "test_data.parquet",
+  "input_rows": 656601,
+  "masked_targets": 163047,
+  "predicted": 163047,
+  "without_past_reading": 3745,
+  "with_interval": 159302,
+  "fleet_prior_predictions": 3745,
+  "unsupported": 0,
+  "recipes": {
+    "nowcast": "rent_aware_recent",
+    "forecast": "blend"
+  },
+  "prior_vehicles": 1000,
+  "nowcast_targets": 0,
+  "forecast_targets": 159302,
+  "snapshot_policy": "quarter-start before prediction origin, past rows only",
+  "completed_rows": 656601,
+  "completed_prediction_values": 163047,
+  "runtime_seconds": 103.12235329998657
+}

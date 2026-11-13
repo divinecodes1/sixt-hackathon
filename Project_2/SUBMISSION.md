@@ -1,132 +1,99 @@
-# Submission: Project 2, team Divinecodes
-
-> **Status (12 Nov, evening):** the full pipeline (nowcast, forecast, 90% intervals, flags, injected-error benchmark)
-> runs and is tested. It is measured on the 57-row example file (1 vehicle: indicative only) and on a synthetic fleet
-> built in the organizers' schema (method check, **not** evidence about SIXT's fleet). Numbers on the full data are
-> *TBD* (it arrives on 13 Nov). Nothing here is estimated or invented: every number comes from a file in `results/`.
+# Submission: Project 2 - Divinecodes
 
 ## Authors
-**Team name:** Divinecodes
 
-**Project:** Project 2: Where is that car's odometer *right now*? (Mileage Forecasting & Erroneous Mileage Detection)
+**Team name:** Divinecodes  
+**Project:** Project 2: Mileage Forecasting & Erroneous Mileage Detection
 
 ## Problem and approach
-Valuation and defleet decisions need today's mileage, but for long rentals we only see the odometer when the car comes
-back. We **nowcast** current mileage with a 90% range, **forecast** future mileage and **flag** readings that do not fit.
 
-1. **Fix the data model first** ([EDA.md](EDA.md)).
-   - An OnRent row carries the odometer from its rental's *handover*, stamped at the return. Read naively, the
-     example's mileage "drops" 12 times and the starter flags all 12. We place those readings at the handover.
-   - Such a reading is only *known* when the rental ends (weeks later for long rentals). Every model and the backtest
-     only use readings known by their origin date; a test rewrites everything after the cutoff and checks that no
-     prediction changes.
-2. **Rental-aware predictor:** mileage = last known reading + r_rent × rental days + r_idle × idle days.
-   - Nowcast: the rental days so far are known from the current rental status (the car left the counter).
-   - Forecast: a car on rent at the cutoff stays out for its *expected remaining* rental time (learned from completed
-     rentals of the same product, given the days already run); after that, the utilisation plan (`uti_plan`),
-     calibrated against realised rental days on 30-day windows before the cutoff; zero new rentals after defleet.
-   - Rates per vehicle (non-negative least squares) shrunk towards a hierarchical prior: rental product > vehicle
-     level > vehicle type (empirical Bayes, so new vehicles and long-term cars get sensible rates).
-   - Variants: time-decayed rates (`rent_aware_recent`) and a blend with the starter's mean rate (`blend`).
-3. **Leakage-free model choice and intervals:** a validation cutoff before the test cutoff (training vehicles only)
-   picks the model per task and calibrates a split-conformal interval: ± q·√(days since the last known reading),
-   with q calibrated per horizon bucket (1–7, 8–14, 15–30, 31–60, >60 days); a bucket longer than any validated one
-   uses the longest validated bucket's q, never less than the overall q.
-4. **Flags** (each is "check this reading", never "fraud"). Every flag's `score` is the estimated km the reading
-   is off by, so one sorted list is the review queue across rules:
-   - `isolated_outlier`: a one-off typo (extra or missing digit) between two consistent neighbours. It is removed
-     before the other rules, so one typo no longer flags every later reading;
-   - `decrease` below the running maximum (a rollback: the highest reading is a floor on true mileage), flagged
-     once per episode (or when it drops further), not on every later reading still below the old maximum;
-   - `implausible_rate` > 1,500 km/day; `moved_without_rental` > 300 km with no rental;
-     `no_movement_on_rent`: unchanged although on rent ≥ 3 days (copied or under-reported reading);
-   - `residual_outlier`: robust z > 8 (scale per rental product once it has 30+ residuals) and ≥ 1,000 km from
-     the nowcast.
+SIXT may receive a car's mileage weeks after it was driven. Valuation and vehicle-sale planning still need an estimate today. We address both requested tasks:
+
+- **A. Mileage prediction:** estimate the current odometer reading (nowcast) and its future value (forecast), with an uncertainty range.
+- **B. Erroneous-reading detection:** flag reports that conflict with the car's usage history, with a reason and a discrepancy score for human review.
+
+Our Python pipeline uses past mileage, rental dates/status, rental product, vehicle category and planned utilisation. It estimates separate driving rates for rented and idle days. Cars with little history borrow information from similar cars. Future usage combines historical patterns with planned utilisation; recorded defleet status stops planning new rentals.
+
+**Key assumption:** repeated OnRent mileage often represents the handover reading rather than a fresh measurement. We assign it to handover for modelling, but only use it after its status row was recorded. This interpretation needs domain confirmation. Future rows and their attributes are excluded from earlier predictions.
+
+For detection, we combine prediction-residual outliers with rules for isolated spikes/dips, decreasing mileage, implausible daily rates, movement without a recorded rental, and unchanged readings despite rental days. These are suspicious reports, not confirmed fraud.
 
 ## Models and why
-No ML library, no LLM: numpy and the standard library, milliseconds per vehicle.
 
-| Model | Open-weight or closed | Where it runs | Main metric(s) | Cost and time | Chosen? |
-| --- | --- | --- | --- | --- | --- |
-| naive_last (last reading) | n/a (rule) | local | MAE, skill = 0 by definition | ms | no, the floor |
-| mean_rate (starter: last + average km/day) | n/a | local | MAE, MAPE, WAPE, skill vs naive | ms | baseline; chosen on the example file |
-| rent_aware (rental days, hierarchical priors) | own, numpy | local | same + 90% interval coverage | ms | chosen on the synthetic fleet (both tasks) |
-| rent_aware_recent (time-decayed rates) | own, numpy | local | same | ms | candidate |
-| blend (mean_rate + rent_aware) | own, numpy | local | same | ms | candidate |
+All six models are our own statistical implementations, run locally with NumPy and DuckDB. They use no external model weights, API keys or paid inference. All were compared on the same held-out targets.
 
-The choice is made per task on the validation period by `backtest()`, never on the test period.
+| Model | Main idea | Nowcast MAE (km) | Nowcast MAPE | Forecast MAE (km) | Forecast MAPE | Selected? |
+|---|---|---:|---:|---:|---:|---|
+| naive_last | Keep the last reading unchanged | 561 | 9.54% | 7,376 | 38.01% | Reference baseline |
+| mean_rate | Extend average daily driving | 474 | 9.07% | 2,995 | 20.42% | Stronger baseline |
+| rent_aware | Separate rented and idle-day rates | 423 | 7.35% | 3,255 | 18.33% | No |
+| rent_aware_recent | Give recent usage more weight | **415** | **7.28%** | 3,176 | 17.91% | **Nowcast** |
+| blend | Average mean_rate and rent_aware | 435 | 7.77% | **2,734** | **17.31%** | **Forecast** |
+| robust_rate | Reduce the influence of past anomalous readings | 431 | 8.46% | 2,747 | 18.24% | No |
+
+Selection uses validation MAE, not final test performance. Measured batch runtime was **1,109.5 seconds**, including loading, evaluation and flags. Per-item latency and infrastructure cost were not benchmarked.
 
 ## Results
-Metrics: MAE in km, MAPE of the odometer (flattering, because odometers are large), WAPE of the distance driven since
-the last known reading, skill = 1 − MAE / MAE(naive_last) on the same targets (MASE-like), and interval coverage.
 
-**Example file** (1 vehicle, 5 held-out return readings: indicative only; `results/metrics.json`):
+### A. Mileage prediction
 
-| Task | naive_last | mean_rate | rent_aware | blend |
-|---|---|---|---|---|
-| Nowcast MAE km | 419 | 133 | 116 | 125 |
-| Forecast MAE km | 2,588 | 667 | 881 | 774 |
+The development file contains **2,699,762 rows and 27,630 vehicles**. A stable vehicle-ID hash separates **22,071 training vehicles** from **5,559 held-out vehicles**. Held-out cars contribute their own available past history at prediction time, but do not train fleet priors.
 
-Validation chose mean_rate for both tasks. Too few validation targets for an interval. Flags: 0 (the starter: 12, all
-artifacts of the stale OnRent rows).
+Models train at **2025-03-31**. Later training-vehicle targets through **2025-07-21** select the models; separate targets through **2025-11-11** calibrate uncertainty ranges. Final evaluation uses readings after **2025-11-11** on held-out vehicles: **20,732 nowcast targets** and **14,274 forecast targets**. Nowcasts use an origin one day before a fresh return-source reading; forecasts use the fixed test cutoff. Suspicious targets are not removed to improve scores.
 
-**Synthetic fleet** (300 vehicles in the organizers' schema and row pattern, 15% long-term; generated by
-`synth_fleet.py`, *made up*, and built on the same rental-days assumption as our model, so it favours it):
+**MAE** is the average absolute error in kilometres; lower is better. **MAPE** is the average absolute error as a percentage of recorded odometer mileage, using a minimum denominator of 1 km. These are error measures, not classification accuracy.
 
-| Task, held-out vehicles after the cutoff | naive_last | mean_rate | rent_aware | blend | 90% coverage (chosen) |
-|---|---|---|---|---|---|
-| Nowcast MAE km (`results/synthetic/run_baseline.txt`, 122 targets) | 3,001 | 974 | **710** | 829 | 86% |
-| Forecast MAE km (same run) | 7,190 | 1,346 | 1,455 | **1,243** | 90% |
-| Nowcast MAE km, 5 fleets (`results/synthetic/seeds.json`) | 2,559 ± 149 | 739 ± 139 | **550 ± 55** | 610 ± 92 | 86–95% |
-| Forecast MAE km, 5 fleets (same file) | 7,179 ± 160 | 1,476 ± 101 | 1,384 ± 183 | **1,362 ± 112** | 88–95% |
+The selected nowcast reduces MAE by **26.0%** versus the last-reading baseline; the selected forecast reduces it by **62.9%**. The table also includes the stronger mean-rate baseline.
 
-Nowcast error grows with the days since the last known reading (rent_aware, one fleet: 245 km at 1–7 days, 957 km
-at 15–30 days, 3,095 km beyond 60 days): exactly where long rentals hurt.
+Ranges target 90% coverage. Measured coverage was **90.7% for nowcasts** and **95.6% for forecasts**, with average full widths of **1,611 km** and **13,366 km** respectively. Coverage means the recorded value fell inside the range; it does not mean the point estimate was that percentage accurate.
 
-**Flags, injected errors** (`results/synthetic/flag_benchmark.txt`, 2% of return readings corrupted, 3 seeds):
+Evidence: [results/metrics.json](results/metrics.json), including bias and errors by reading age, forecast lead time and rental product; [results/data_profile.json](results/data_profile.json) contains the data audit.
 
-| Error type | extra digit | missing digit | transposed digits | rollback | stuck reading | all |
-|---|---|---|---|---|---|---|
-| Recall | 100% | 100% | 69% | 96% | 79% | **91%** |
+### B. Erroneous-reading detection
 
-Untouched readings flagged: 2.9 per 1,000 (67 of 23,426: residual_outlier 31, isolated_outlier 19,
-moved_without_rental 14, implausible_rate 8). The residual threshold (z 8, 1,000 km) was chosen with this benchmark
-to keep that rate low (a looser threshold caught more errors but flagged many more untouched readings).
+There are no confirmed wrong-reading labels. We therefore measured detection using injected errors in a development-only cohort: training vehicles, rows recorded by **2025-02-01**, and three fixed seeds. Thresholds were not tuned on final held-out outcomes.
 
-**What did not work / limits**
-- The forecast under-predicts at return readings (bias −1,212 km on the synthetic run). Return readings follow on-rent
-  days by construction, while our plan calibration targets arbitrary days ([EDA.md](EDA.md) finding 4). We report it
-  instead of tuning to the evaluation.
-- Validation does not always pick the test winner (forecast on the synthetic run: rent_aware chosen, blend better).
-- Forecast interval coverage varied by fleet (78–96%) with one √gap-scaled width; calibrating the width per horizon
-  bucket narrowed it to 88–95% (`results/synthetic/seeds.json`). Beyond the horizons seen in validation the
-  intervals are now conservative (wider than needed) rather than too narrow.
-- Transposed digits that change the reading by little are hard to tell apart from normal driving (69%).
-- One vehicle in the example; synthetic numbers check the method, not SIXT's reality. Full data: *TBD 13 Nov*.
+The detector caught **450 of 479 corrupted readings (93.9%)**. Allowing a rollback to be identified at its first lowered reading or the immediately preceding reading gives **451 of 479 episodes (94.2%)**. The benchmark includes extra/missing digits, rollbacks, stuck readings and transposed digits.
+
+It also flagged **5,965 of 85,519 untouched readings**, including **122 additional flags** beyond the original flag set. Untouched readings can already contain errors, so this is not a measured false-positive rate. Across the development fleet, **84.22 readings per 1,000** were flagged. Real flag precision and domain plausibility still need expert review.
+
+Evidence: [results/flag_benchmark.json](results/flag_benchmark.json) and the rule counts in [results/metrics.json](results/metrics.json).
+
+### Supplied masked-file inference
+
+We produced estimates for **all 163,047 missing-mileage rows**. Of these, **159,302** have historical estimates with calibrated ranges; **3,745** lack their own past reading and receive a clearly marked cohort-median fallback without a calibrated range. The completed file preserves the original columns, fills `sixt_predicted_mileage_interp`, and leaves `sixt_error` unchanged.
+
+The inference runner uses a bounded development cohort and past quarter-start snapshots to build priors; its fallback performance is not established by the held-out vehicle-history scores above. The masked file has no target labels, so filling every row is **completion, not measured accuracy**.
+
+Evidence: [results/test_inference_summary.json](results/test_inference_summary.json) and [results/inference_validation.json](results/inference_validation.json). Vehicle-level outputs are generated locally, not included in the public package.
+
+### Limitations
+
+- Recorded return mileage can be stale or incorrect; it is a proxy for true odometer mileage. One-day-before-return nowcasts do not directly validate every possible valuation day.
+- Short-term rentals dominate. The held-out long-term groups have only **105 nowcast** and **140 forecast** targets, so long-term performance needs more validation.
+- Forecast ranges are wide. Reported coverage is empirical, not guaranteed under changes in fleet or usage.
+- Missing rental records and unusual driving can create false alarms. Human-confirmed flag precision is not yet available.
 
 ## How to run
-Python 3.11+, numpy only for our code (`requirements.txt` also lists pandas, scikit-learn and matplotlib for
-exploration).
-```bash
+
+Python **3.11+**; checked locally with Python 3.14. No environment variables or API keys are required. From the repository root on Windows:
+
+```powershell
 cd Project_2
-python -m venv .venv && . .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install numpy
-python -m unittest test_mileage -v                  # 21 tests, incl. no-leakage and the flag benchmark
-python run_baseline.py                              # first CSV in data/ (git-ignored), else example_file.csv
-python run_baseline.py data/<file>.csv --asof 2024-08-01   # + per-vehicle nowcast with 90% range (git-ignored)
-python flag_benchmark.py data/<file>.csv            # injected-error recall and false-flag rate on that data
-python synth_fleet.py && python run_baseline.py synthetic/fleet.csv --out results/synthetic   # synthetic check
-python synth_eval.py                                # 5 synthetic fleets: stability of the ranking
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m unittest test_mileage -v
+.\.venv\Scripts\python.exe run_baseline.py example_file.csv --out results/example
 ```
-Outputs: `results/metrics.json`, `results/flags.csv`, `results/synthetic/*`. No secrets or environment variables.
+
+The public example runs without organizer data; its scores are only a smoke check. To reproduce the fleet results, provide the supplied Parquet files locally in the ignored `data/` directory and follow [README.md: Reproduce the supplied-data analysis](README.md#reproduce-the-supplied-data-analysis). That section also documents inference, generated outputs, and Linux/macOS setup. Use a separate example output directory to preserve the recorded fleet metrics.
 
 ## Demo
-`submission/slides.pdf`: *to be added on 13 Nov.*
+
+[submission/slides.pdf](submission/slides.pdf) is the required presentation deliverable: **five slides**. The additional [submission/demo.html](submission/demo.html) is a self-contained offline demo: open it in a browser to compare current mileage, change forecast horizons and review suspicious readings. It uses made-up vehicles and actual model outputs.
 
 ## Next steps
-- Rerun everything on the full data; check the flag thresholds with `flag_benchmark.py` there and send the top flags
-  to a domain expert for plausibility.
-- Long-term rentals: model monthly self-reported readings, and use the contract's planned return date if SIXT has it.
-- Intervals that widen linearly for long forecast horizons, or adaptive conformal updates over time.
-- For SIXT: a daily job that publishes a nowcast per vehicle with its range (`--asof`), plus a review queue of flagged
-  readings ordered by score.
+
+Run a daily shadow-mode batch for valuation and defleet analysts, showing estimates, uncertainty and a prioritised review queue. Ask domain experts to label flags and confirm rental-date semantics; collect fresh long-term readings and recalibrate by product and forecast horizon. Measure review workload and valuation impact before claiming financial savings.
+
+**Publication status:** organizer files and detailed outputs are excluded from the working package, but earlier git commits still contain the supplied data. Publication permission or history cleanup remains necessary before final submission; the current cleanup is not yet committed or pushed.
