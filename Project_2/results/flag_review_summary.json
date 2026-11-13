@@ -1,0 +1,22 @@
+{
+  "reviewed_automatically": {
+    "isolated_outlier": 5,
+    "residual_outlier": 5,
+    "decrease": 5,
+    "implausible_rate": 5,
+    "moved_without_rental": 5,
+    "no_movement_on_rent": 5
+  },
+  "human_confirmed": 0,
+  "note": "Automated context only; domain-expert review pending. No precision claim.",
+  "input_rows": 95501,
+  "vehicles": 1000,
+  "rules": {
+    "isolated_outlier": 1457,
+    "no_movement_on_rent": 1172,
+    "implausible_rate": 486,
+    "moved_without_rental": 2537,
+    "decrease": 137,
+    "residual_outlier": 283
+  }
+}

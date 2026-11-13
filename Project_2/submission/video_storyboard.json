@@ -1,0 +1,261 @@
+{
+  "walkthrough": [
+    {
+      "id": "welcome",
+      "title": "Where is that car's odometer right now?",
+      "subtitle": "Divinecodes \u00b7 Project 2 \u00b7 SIXT Hackathon",
+      "points": [
+        "Estimate current mileage",
+        "Forecast future mileage",
+        "Find reports worth reviewing"
+      ],
+      "narration": "This is team Divinecodes, presenting Project Two: mileage forecasting and erroneous mileage detection. We built a local pipeline and an interactive demonstration to estimate a rental car's current mileage, forecast future mileage, and identify reports that deserve a closer look."
+    },
+    {
+      "id": "problem",
+      "title": "The problem: readings arrive late",
+      "subtitle": "Why this matters to SIXT",
+      "points": [
+        "A car can stay with a customer for weeks",
+        "The recorded odometer becomes outdated",
+        "Valuation and defleet decisions still need an estimate"
+      ],
+      "narration": "During a long rental, the latest recorded odometer may be weeks out of date. SIXT still needs to value the car and decide when to remove it from the rental fleet. A nowcast estimates mileage today. A forecast estimates mileage on a future date. Suspicious reading detection helps analysts find possible entry mistakes or unusual usage."
+    },
+    {
+      "id": "data",
+      "title": "We connected the supplied Parquet data",
+      "subtitle": "Development evidence and separate inference targets",
+      "stats": [
+        [
+          "2,699,762",
+          "development status rows"
+        ],
+        [
+          "27,630",
+          "development vehicles"
+        ],
+        [
+          "163,047",
+          "missing-mileage targets"
+        ]
+      ],
+      "points": [
+        "Use development data for evaluation",
+        "Keep masked targets separate from tuning",
+        "Empty organizer prediction columns are not model features"
+      ],
+      "narration": "The development sample contains nearly two point seven million status rows across twenty seven thousand, six hundred and thirty vehicles. We added Parquet support and streaming fleet loading. The separate inference file has one hundred and sixty three thousand, forty seven missing mileage targets. We keep those targets separate from model tuning and do not use the empty organizer prediction or error columns as features."
+    },
+    {
+      "id": "timing",
+      "title": "The key insight: two different clocks",
+      "subtitle": "Measurement date is different from availability date",
+      "points": [
+        "An OnRent value may be an older handover reading",
+        "Retiming a value must not make it available earlier",
+        "Rental metadata and changing categories obey the same boundary",
+        "The pattern is not universal: verify the source semantics"
+      ],
+      "narration": "Our main insight is that the date a mileage value belongs to can differ from the date the system first knows it. Some On Rent rows contain older handover mileage. We retime those values, but never reveal them before their row was recorded. We apply the same availability boundary to rental metadata and changing vehicle categories. The fleet pattern is not universal, so we document the assumption rather than treating every row as certain truth."
+    },
+    {
+      "id": "method",
+      "title": "Compare methods, then evaluate honestly",
+      "subtitle": "Choose before looking at held-out outcomes",
+      "points": [
+        "Last-reading and average-rate baselines",
+        "Rental-aware rates, recent rates, a blend and a robust candidate",
+        "Separate model selection from interval calibration",
+        "Test on later periods and held-out vehicles"
+      ],
+      "narration": "We compared the last recorded reading, an average daily rate, rental aware models, a recent usage variant, a blend, and a robust rate candidate. Earlier validation chooses the model separately for each task. A different later period calibrates the prediction ranges. Final evaluation uses later readings on held out vehicles. Future field mutation tests check that changing future rows cannot change earlier predictions."
+    },
+    {
+      "id": "dashboard",
+      "title": "Live walkthrough: estimate the current mileage",
+      "subtitle": "All dashboard vehicles and readings are synthetic",
+      "shot": "overview",
+      "points": [
+        "Choose a vehicle",
+        "Compare last reading with the current estimate",
+        "Read the age and uncertainty range"
+      ],
+      "narration": "Here is the working dashboard. Every vehicle in this demonstration is made up. Select a car on the left. The first card shows its last recorded mileage and the age of that reading. The orange card shows the model's current estimate and a prediction range. The timeline connects the known history to the estimate, making the gap visible instead of hiding the uncertainty."
+    },
+    {
+      "id": "forecast",
+      "title": "Change the planning horizon",
+      "subtitle": "Precomputed Python model outputs \u00b7 not an invented browser calculation",
+      "shot": "forecast",
+      "points": [
+        "Switch between 7, 30, 60 and 90 days",
+        "Inspect the future estimate and its range",
+        "Export the selected result to CSV"
+      ],
+      "narration": "Next, change the forecast horizon from thirty days to ninety days. The future estimate and its range update using outputs precomputed by the Python models. Longer horizons can require much wider ranges. The page also supports searching, filtering, and exporting the selected estimate as a CSV. The demo works offline and needs no API key."
+    },
+    {
+      "id": "review",
+      "title": "Make suspicious reports explainable",
+      "subtitle": "A review signal is not proof of fraud",
+      "shot": "review",
+      "points": [
+        "An invented mileage spike is flagged",
+        "Each signal includes a date, reason and context",
+        "Transfers, delayed data and unusual usage can also trigger flags"
+      ],
+      "narration": "The review queue includes an intentionally invented mileage spike. Each signal shows the report date, the reading, and a reason for investigation. Our rules cover isolated spikes or dips, decreases, implausible rates, movement without recorded rentals, unchanged readings during rental days, and model residual outliers. A flag is a request for review. It is not proof of fraud, and real precision still requires domain expert labels."
+    },
+    {
+      "id": "results",
+      "title": "Measured results on held-out data",
+      "subtitle": "Average absolute error in kilometres \u00b7 lower is better",
+      "results": true,
+      "narration": "On held out development readings, current mileage error falls from five hundred and sixty one kilometres for the last reading baseline to four hundred and fifteen. Forecast error falls from seven thousand, three hundred and seventy six kilometres to two thousand, seven hundred and thirty four. Those are reductions of twenty six percent and sixty two point nine percent. The selected models also beat the stronger average rate baseline. These are fleet evaluation results, separate from the synthetic dashboard."
+    },
+    {
+      "id": "flags",
+      "title": "Measure detection, report its limits",
+      "subtitle": "Known injected mistakes provide a controlled check",
+      "stats": [
+        [
+          "94.2%",
+          "injected-error episode recall"
+        ],
+        [
+          "93.9%",
+          "exact corrupted-reading recall"
+        ],
+        [
+          "Unknown",
+          "real-world flag precision"
+        ]
+      ],
+      "points": [
+        "Episode recall can credit a rollback neighbour",
+        "Untouched flags can include pre-existing problems",
+        "Do not turn review signals into accusations"
+      ],
+      "narration": "In a controlled development benchmark, the detector caught four hundred and fifty one of four hundred and seventy nine injected mistakes: ninety four point two percent episode recall. Exact corrupted reading recall was ninety three point nine percent. Episode recall can also credit the reading immediately before a rollback. This does not establish real world precision. Untouched readings may already contain errors, and some flags may reflect missing or stale operational data."
+    },
+    {
+      "id": "inference",
+      "title": "The missing-mileage output is complete",
+      "subtitle": "Original table preserved \u00b7 unsupported certainty avoided",
+      "stats": [
+        [
+          "163,047",
+          "prediction values written"
+        ],
+        [
+          "159,302",
+          "history-based estimates with ranges"
+        ],
+        [
+          "3,745",
+          "flagged cohort-prior fallbacks"
+        ]
+      ],
+      "points": [
+        "Future targets use the forecast recipe",
+        "No own history: clearly mark the cohort fallback",
+        "Leave sixt_error unchanged when truth is missing"
+      ],
+      "narration": "We filled all one hundred and sixty three thousand, forty seven missing mileage targets and preserved the original table. Most use the vehicle's own earlier history with a range. Three thousand, seven hundred and forty five have no usable own history, so they receive an explicitly flagged fleet cohort fallback. Those fallbacks have no calibrated range and need review. The error column stays unchanged because the masked ground truth is unavailable."
+    },
+    {
+      "id": "delivery",
+      "title": "A reproducible project, ready for review",
+      "subtitle": "Code \u00b7 evaluation evidence \u00b7 visual demo \u00b7 presentation",
+      "points": [
+        "31 automated tests pass",
+        "Public example runs without organizer data",
+        "Self-contained offline dashboard and five-slide PDF",
+        "Next: expert labels, long-term validation and a shadow-mode pilot"
+      ],
+      "narration": "The project includes reproducible commands, measured aggregate evidence, thirty one passing tests, an offline dashboard, and a five slide presentation. A clean source copy runs the public example without organizer data. The next step is a shadow mode pilot: confirm measurement semantics, label representative flags, and validate long term rentals and range coverage. We demonstrate a working decision aid, not proven fraud detection, guaranteed savings, or production readiness."
+    }
+  ],
+  "demo": [
+    {
+      "id": "welcome",
+      "title": "Where is that car's odometer right now?",
+      "subtitle": "Divinecodes \u00b7 Project 2 \u00b7 SIXT Hackathon",
+      "points": [
+        "Estimate current mileage",
+        "Forecast future mileage",
+        "Find reports worth reviewing"
+      ],
+      "narration": "We are Divinecodes. Our project estimates current rental car mileage, forecasts future mileage, and flags suspicious reports."
+    },
+    {
+      "id": "timing",
+      "title": "The key insight: two different clocks",
+      "subtitle": "Measurement date is different from availability date",
+      "points": [
+        "An OnRent value may be an older handover reading",
+        "Retiming a value must not make it available earlier",
+        "Rental metadata and changing categories obey the same boundary",
+        "The pattern is not universal: verify the source semantics"
+      ],
+      "narration": "The key insight is timing: an old handover value must not become available before its status row was recorded."
+    },
+    {
+      "id": "dashboard",
+      "title": "Live walkthrough: estimate the current mileage",
+      "subtitle": "All dashboard vehicles and readings are synthetic",
+      "shot": "overview",
+      "points": [
+        "Choose a vehicle",
+        "Compare last reading with the current estimate",
+        "Read the age and uncertainty range"
+      ],
+      "narration": "Our offline dashboard shows the last reading, current estimate, uncertainty range, and selectable future forecasts. All demo vehicles are synthetic."
+    },
+    {
+      "id": "results",
+      "title": "Measured results on held-out data",
+      "subtitle": "Average absolute error in kilometres \u00b7 lower is better",
+      "results": true,
+      "narration": "On held out fleet readings, current mileage error drops from five hundred sixty one to four hundred fifteen kilometres. Forecast error drops from seven thousand three hundred seventy six to two thousand seven hundred thirty four."
+    },
+    {
+      "id": "inference",
+      "title": "The missing-mileage output is complete",
+      "subtitle": "Original table preserved \u00b7 unsupported certainty avoided",
+      "stats": [
+        [
+          "163,047",
+          "prediction values written"
+        ],
+        [
+          "159,302",
+          "history-based estimates with ranges"
+        ],
+        [
+          "3,745",
+          "flagged cohort-prior fallbacks"
+        ]
+      ],
+      "points": [
+        "Future targets use the forecast recipe",
+        "No own history: clearly mark the cohort fallback",
+        "Leave sixt_error unchanged when truth is missing"
+      ],
+      "narration": "We filled every missing mileage target. Vehicles without history receive clearly flagged cohort fallbacks, not false certainty."
+    },
+    {
+      "id": "delivery",
+      "title": "A reproducible project, ready for review",
+      "subtitle": "Code \u00b7 evaluation evidence \u00b7 visual demo \u00b7 presentation",
+      "points": [
+        "31 automated tests pass",
+        "Public example runs without organizer data",
+        "Self-contained offline dashboard and five-slide PDF",
+        "Next: expert labels, long-term validation and a shadow-mode pilot"
+      ],
+      "narration": "Thirty one tests pass. Next: expert flag review and a shadow mode pilot. Full details are in our submission."
+    }
+  ]
+}

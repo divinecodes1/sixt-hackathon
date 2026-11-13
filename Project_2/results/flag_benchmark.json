@@ -1,0 +1,82 @@
+{
+  "injected": {
+    "extra_digit": 101,
+    "missing_digit": 114,
+    "rollback": 110,
+    "stuck": 76,
+    "transposed": 78
+  },
+  "caught": {
+    "extra_digit": 101,
+    "missing_digit": 111,
+    "rollback": 109,
+    "stuck": 60,
+    "transposed": 70
+  },
+  "untouched": 85519,
+  "flagged_untouched": 5965,
+  "false_rules": {
+    "residual_outlier": 457,
+    "isolated_outlier": 1837,
+    "no_movement_on_rent": 1555,
+    "moved_without_rental": 1936,
+    "implausible_rate": 457,
+    "decrease": 183
+  },
+  "by_rule": {
+    "extra_digit": {
+      "isolated_outlier": 98,
+      "residual_outlier": 3,
+      "implausible_rate": 3
+    },
+    "missing_digit": {
+      "isolated_outlier": 110,
+      "decrease": 1,
+      "residual_outlier": 1
+    },
+    "rollback": {
+      "isolated_outlier": 68,
+      "decrease": 41,
+      "residual_outlier": 35,
+      "moved_without_rental": 1,
+      "no_movement_on_rent": 2
+    },
+    "transposed": {
+      "isolated_outlier": 64,
+      "moved_without_rental": 6,
+      "residual_outlier": 1
+    },
+    "stuck": {
+      "no_movement_on_rent": 60
+    }
+  },
+  "exact_caught": {
+    "extra_digit": 101,
+    "missing_digit": 111,
+    "rollback": 108,
+    "stuck": 60,
+    "transposed": 70
+  },
+  "previously_unflagged": {
+    "missing_digit": 105,
+    "rollback": 104,
+    "stuck": 74,
+    "extra_digit": 93,
+    "transposed": 74
+  },
+  "caught_previously_unflagged": {
+    "missing_digit": 102,
+    "rollback": 103,
+    "stuck": 60,
+    "extra_digit": 93,
+    "transposed": 66
+  },
+  "additional_untouched_flags": 122,
+  "input": "data_30_percent_sample.parquet",
+  "input_rows": 45745,
+  "seeds": 3,
+  "rate": 0.02,
+  "before": "2025-02-01",
+  "training_only": true,
+  "max_vehicles": 1000
+}

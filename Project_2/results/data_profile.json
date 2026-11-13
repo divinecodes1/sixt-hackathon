@@ -1,0 +1,143 @@
+{
+  "input": "data_30_percent_sample.parquet",
+  "rows": 2699762,
+  "columns": [
+    "vhcl_anon_id",
+    "acriss_code_anonymized",
+    "vehicle_level",
+    "vehicle_type",
+    "model_year",
+    "driven_wheels",
+    "power_ps",
+    "cubic_capacity_liter",
+    "status_code_anonymized",
+    "vhcl_fct_taken_datm",
+    "vhcl_current_mileage",
+    "repair_status",
+    "on_rent_status",
+    "rental_product",
+    "one_way_flg",
+    "rntl_handover_date",
+    "rntl_return_date",
+    "vhcl_max_mileage",
+    "brnc_code",
+    "brnc_pool_code",
+    "brnc_region_code",
+    "brnc_state_code",
+    "uti_plan",
+    "sixt_predicted_mileage_interp",
+    "sixt_error"
+  ],
+  "dtypes": {
+    "vhcl_anon_id": "VARCHAR",
+    "acriss_code_anonymized": "BIGINT",
+    "vehicle_level": "VARCHAR",
+    "vehicle_type": "VARCHAR",
+    "model_year": "BIGINT",
+    "driven_wheels": "VARCHAR",
+    "power_ps": "BIGINT",
+    "cubic_capacity_liter": "DOUBLE",
+    "status_code_anonymized": "DOUBLE",
+    "vhcl_fct_taken_datm": "VARCHAR",
+    "vhcl_current_mileage": "BIGINT",
+    "repair_status": "VARCHAR",
+    "on_rent_status": "VARCHAR",
+    "rental_product": "VARCHAR",
+    "one_way_flg": "VARCHAR",
+    "rntl_handover_date": "VARCHAR",
+    "rntl_return_date": "VARCHAR",
+    "vhcl_max_mileage": "BIGINT",
+    "brnc_code": "VARCHAR",
+    "brnc_pool_code": "VARCHAR",
+    "brnc_region_code": "VARCHAR",
+    "brnc_state_code": "VARCHAR",
+    "uti_plan": "DOUBLE",
+    "sixt_predicted_mileage_interp": "DOUBLE",
+    "sixt_error": "DOUBLE"
+  },
+  "missing": {
+    "vhcl_anon_id": 0,
+    "acriss_code_anonymized": 0,
+    "vehicle_level": 0,
+    "vehicle_type": 0,
+    "model_year": 0,
+    "driven_wheels": 0,
+    "power_ps": 0,
+    "cubic_capacity_liter": 1,
+    "status_code_anonymized": 245,
+    "vhcl_fct_taken_datm": 0,
+    "vhcl_current_mileage": 0,
+    "repair_status": 0,
+    "on_rent_status": 0,
+    "rental_product": 0,
+    "one_way_flg": 0,
+    "rntl_handover_date": 669059,
+    "rntl_return_date": 669059,
+    "vhcl_max_mileage": 0,
+    "brnc_code": 12991,
+    "brnc_pool_code": 12991,
+    "brnc_region_code": 12991,
+    "brnc_state_code": 12991,
+    "uti_plan": 44599,
+    "sixt_predicted_mileage_interp": 2699762,
+    "sixt_error": 2699762
+  },
+  "vehicles": 27630,
+  "on_rent_status": {
+    "OnRent": 2031843,
+    "NotOnRent": 667919
+  },
+  "rental_product": {
+    "No_Rental": 1472,
+    "ShortTerm": 2578292,
+    "LongTerm": 119998
+  },
+  "vehicle_level": {
+    "Full Size": 1354503,
+    "Intermediate": 781886,
+    "Standard": 563373
+  },
+  "status_code_anonymized": {
+    "4.0": 12821,
+    "None": 245,
+    "2.0": 2634704,
+    "3.0": 44988,
+    "1.0": 70,
+    "5.0": 6934
+  },
+  "vhcl_fct_taken_datm": {
+    "min": "2022-01-02 00:00:00.000",
+    "max": "2026-07-01 00:00:00.000"
+  },
+  "rntl_handover_date": {
+    "min": "2021-12-17",
+    "max": "2026-07-01"
+  },
+  "rntl_return_date": {
+    "min": "2022-01-03",
+    "max": "2026-08-25"
+  },
+  "vhcl_current_mileage": {
+    "min": 0,
+    "median": 13815.0,
+    "max": 999999,
+    "negative": 0
+  },
+  "uti_plan": {
+    "min": 0.0,
+    "median": 0.7979,
+    "max": 1.0,
+    "negative": 0
+  },
+  "same_day_pairs": {
+    "pairs": 609671,
+    "onrent_lower": 424008,
+    "equal": 171003,
+    "onrent_higher": 14660
+  },
+  "date_checks": {
+    "handover_after_recorded": 14,
+    "return_before_handover": 0,
+    "return_after_recorded": 634082
+  }
+}

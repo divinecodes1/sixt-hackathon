@@ -17,6 +17,7 @@ A rollback counts as caught if its first lowered reading or the reading just bef
 from __future__ import annotations
 
 import argparse
+import json
 import random
 from collections import Counter, defaultdict
 from datetime import date
@@ -56,7 +57,9 @@ def inject(rows: list[dict], rate: float, seed: int) -> tuple[list[dict], list[d
         by_vid[r.get("vhcl_anon_id", "")].append(i)
     candidates = [i for i, r in enumerate(rows)
                   if r.get("on_rent_status") == "NotOnRent" and M._float(r.get("vhcl_current_mileage")) is not None]
-    chosen = rng.sample(candidates, max(1, int(rate * len(candidates))))
+    if not 0 <= rate <= 1:
+        raise ValueError('rate must be between zero and one')
+    chosen = rng.sample(candidates, min(len(candidates), max(1, int(rate * len(candidates))))) if rate else []
     injected, rolled_later, used_vids = [], set(), set()
     for n, i in enumerate(chosen):
         r = rows[i]
@@ -92,7 +95,7 @@ def inject(rows: list[dict], rate: float, seed: int) -> tuple[list[dict], list[d
     return rows, injected, rolled_later
 
 
-def run(rows: list[dict], rate: float, seed: int) -> dict:
+def run(rows: list[dict], rate: float, seed: int, baseline_keys: set | None = None) -> dict:
     bad_rows, injected, rolled_later = inject(rows, rate, seed)
     fleet = M.build_fleet(bad_rows)
     fl = M.flags(fleet)
@@ -100,6 +103,9 @@ def run(rows: list[dict], rate: float, seed: int) -> dict:
     for f in fl:
         flagged[(f["vhcl_anon_id"], M._day(f["date"]), round(f["km"]))].add(f["rule"])
     caught = Counter()
+    exact_caught = Counter()
+    previously_unflagged = Counter()
+    caught_previously_unflagged = Counter()
     by_rule = defaultdict(Counter)
     for e in injected:
         v = fleet[e["vid"]]
@@ -110,15 +116,25 @@ def run(rows: list[dict], rate: float, seed: int) -> dict:
                 keys.append((e["vid"], v.obs_day[idx[0] - 1], round(v.obs_km[idx[0] - 1])))
         rules = set().union(*(flagged.get(k, set()) for k in keys))
         caught[e["type"]] += bool(rules)
+        exact_caught[e['type']] += bool(flagged.get(keys[0]))
+        original_key = (e['vid'], e['day'], round(e['true_km']))
+        if baseline_keys is not None and original_key not in baseline_keys:
+            previously_unflagged[e['type']] += 1
+            caught_previously_unflagged[e['type']] += bool(rules)
         for rule in rules:
             by_rule[e["type"]][rule] += 1
     injected_keys = {(e["vid"], e["day"], e["km"]) for e in injected}
     untouched = [(vid, d, round(km)) for vid, v in fleet.items() for d, km in zip(v.obs_day, v.obs_km)
                  if (vid, d, round(km)) not in injected_keys and (vid, d, round(km)) not in rolled_later]
     false = [k for k in untouched if k in flagged]
-    return {"injected": Counter(e["type"] for e in injected), "caught": caught, "by_rule": by_rule,
-            "untouched": len(untouched), "flagged_untouched": len(false),
-            "false_rules": Counter(r for k in false for r in flagged[k])}
+    new_flags = [k for k in false if baseline_keys is not None and k not in baseline_keys]
+    result = {"injected": Counter(e['type'] for e in injected), 'caught': caught, 'by_rule': by_rule,
+              'untouched': len(untouched), 'flagged_untouched': len(false),
+              'false_rules': Counter(r for k in false for r in flagged[k]),
+              'exact_caught': exact_caught, 'previously_unflagged': previously_unflagged,
+              'caught_previously_unflagged': caught_previously_unflagged,
+              'additional_untouched_flags': len(new_flags)}
+    return result
 
 
 def main() -> None:
@@ -126,19 +142,32 @@ def main() -> None:
     ap.add_argument("csv", nargs="?")
     ap.add_argument("--rate", type=float, default=0.01, help="share of return readings to corrupt (default 0.01)")
     ap.add_argument("--seeds", type=int, default=3)
+    ap.add_argument('--max-vehicles', type=int)
+    ap.add_argument('--before', help='use only rows recorded by this date')
+    ap.add_argument('--training-only', action='store_true', help='exclude the hashed held-out vehicles')
+    ap.add_argument('--out', type=Path, help='write aggregate benchmark JSON')
     a = ap.parse_args()
-    found = sorted((HERE / "data").glob("*.csv")) or [p for p in (HERE / "synthetic" / "fleet.csv",) if p.exists()] \
-        or [HERE / "example_file.csv"]
+    found = [HERE / 'example_file.csv']
     path = Path(a.csv) if a.csv else found[0]
-    rows = M.load_rows(str(path))
+    rows = M.load_rows(str(path), a.max_vehicles)
+    if a.before:
+        rows = [r for r in rows if r['vhcl_fct_taken_datm'][:10] <= a.before]
+    if a.training_only:
+        train, _ = M.split_vehicles(M.build_fleet(rows))
+        rows = [r for r in rows if r['vhcl_anon_id'] in train]
     tot: dict = {"injected": Counter(), "caught": Counter(), "untouched": 0, "flagged_untouched": 0,
-                 "false_rules": Counter(), "by_rule": defaultdict(Counter)}
+                 "false_rules": Counter(), "by_rule": defaultdict(Counter),
+                 'exact_caught': Counter(), 'previously_unflagged': Counter(),
+                 'caught_previously_unflagged': Counter(), 'additional_untouched_flags': 0}
+    baseline_keys = {(f['vhcl_anon_id'], M._day(f['date']), round(f['km']))
+                     for f in M.flags(M.build_fleet(rows))}
     for seed in range(a.seeds):
-        r = run(rows, a.rate, seed)
-        for k in ("injected", "caught", "false_rules"):
+        r = run(rows, a.rate, seed, baseline_keys)
+        for k in ("injected", "caught", "false_rules", 'exact_caught', 'previously_unflagged', 'caught_previously_unflagged'):
             tot[k] += r[k]
         tot["untouched"] += r["untouched"]
         tot["flagged_untouched"] += r["flagged_untouched"]
+        tot['additional_untouched_flags'] += r['additional_untouched_flags']
         for t, c in r["by_rule"].items():
             tot["by_rule"][t] += c
     print(f"{path.name}: {a.seeds} seeds, {a.rate:.1%} of return readings corrupted per seed")
@@ -152,6 +181,18 @@ def main() -> None:
     print(f"{'all':<15}{n_all:>9}{c_all:>8}{c_all / max(n_all, 1):>8.0%}")
     print(f"\nuntouched readings flagged: {tot['flagged_untouched']} of {tot['untouched']} "
           f"({1000 * rate:.1f} per 1,000; upper bound on false flags) by rule: {dict(tot['false_rules'])}")
+    print('Exact corrupted-reading catches:', dict(tot['exact_caught']))
+    print('Additional untouched flags beyond pre-existing flags:', tot['additional_untouched_flags'])
+    if a.out:
+        tot['input'] = path.name
+        tot['input_rows'] = len(rows)
+        tot['seeds'] = a.seeds
+        tot['rate'] = a.rate
+        tot['before'] = a.before
+        tot['training_only'] = a.training_only
+        tot['max_vehicles'] = a.max_vehicles
+        a.out.parent.mkdir(parents=True, exist_ok=True)
+        a.out.write_text(json.dumps(tot, indent=2), encoding='utf-8')
 
 
 if __name__ == "__main__":

@@ -1,0 +1,7 @@
+# Local vehicle-level data and review material must never enter the submission.
+data/
+results/local/
+results/*/nowcast_*.csv
+results/*/forecast_*.csv
+.chrome-profile/
+submission/.video-work/

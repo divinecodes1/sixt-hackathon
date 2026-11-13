@@ -1,11 +1,10 @@
 """Mileage nowcast/forecast and erroneous-mileage flags. Python 3.11+, numpy + standard library only.
 
-Data fact this module is built around (see EDA.md): a row with on_rent_status == "OnRent" is written when a rental
-closes but carries the odometer reading from the rental's HANDOVER. Read naively, the series "goes down" whenever an
-OnRent row follows a return reading. We therefore place OnRent readings at their handover date in the series, but
-treat them as KNOWN only from vhcl_fct_taken_datm (when the row was written): every model and backtest sees a reading
-only once it is known. For a long rental that is weeks later, which is exactly the business problem. Whether a car is
-on rent now is known operationally from its handover, so nowcasts may use the current rental status (as the README asks).
+OnRent rows often carry stale handover mileage. We place those readings at handover,
+but make the reading, rental metadata and changing vehicle attributes available only
+from the row's recorded day. This avoids assuming an unprovided live handover feed.
+The fleet sample contains planned returns later than the row timestamp, so a row
+must not automatically be interpreted as a completed rental. See EDA.md for limits.
 
 Pieces:
 - load_rows / build_fleet: CSV -> per-vehicle observations (day, km), rental intervals, utilisation plan, segment
@@ -33,6 +32,7 @@ from bisect import bisect_right
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field, replace
 from datetime import date
+from pathlib import Path
 
 import numpy as np
 
@@ -64,14 +64,82 @@ def _day(s: str | None) -> int | None:
 
 def _float(s: str | None) -> float | None:
     try:
-        return float(s)  # type: ignore[arg-type]
+        value = float(s)  # type: ignore[arg-type]
+        return value if math.isfinite(value) else None
     except (TypeError, ValueError):
         return None
 
 
-def load_rows(path: str) -> list[dict]:
-    with open(path, encoding="utf-8", newline="") as f:
-        return list(csv.DictReader(f))
+def load_rows(path: str, max_vehicles: int | None = None) -> list[dict]:
+    """Read CSV/Parquet; optionally select vehicles by stable SHA256 order.
+
+    Organizer prediction/error columns are excluded, never used as features.
+    """
+    required = {'vhcl_anon_id', 'vhcl_fct_taken_datm', 'vhcl_current_mileage', 'on_rent_status'}
+    if Path(path).suffix.lower() == '.parquet':
+        import duckdb
+        con = duckdb.connect()
+        try:
+            con.read_parquet(path).create_view('input_rows')
+            columns = [r[0] for r in con.execute('DESCRIBE input_rows').fetchall()]
+            if missing := required - set(columns):
+                raise ValueError(f'Missing required columns: {sorted(missing)}')
+            columns = [c for c in columns if not c.startswith('sixt_')]
+            selected = ', '.join('"' + c.replace('"', '""') + '"' for c in columns)
+            where = ''
+            if max_vehicles is not None:
+                if max_vehicles < 1:
+                    raise ValueError('max_vehicles must be positive')
+                where = (' WHERE vhcl_anon_id IN (SELECT DISTINCT vhcl_anon_id FROM input_rows '
+                         f"ORDER BY sha256('development:' || vhcl_anon_id) LIMIT {int(max_vehicles)})")
+            cur = con.execute(f'SELECT {selected} FROM input_rows{where} ORDER BY vhcl_anon_id, vhcl_fct_taken_datm, vhcl_current_mileage, on_rent_status, rntl_handover_date')
+            rows = []
+            while batch := cur.fetchmany(10000):
+                rows.extend(dict(zip(columns, ('' if x is None else str(x) for x in row))) for row in batch)
+            return rows
+        finally:
+            con.close()
+    with open(path, encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        if missing := required - set(reader.fieldnames or []):
+            raise ValueError(f'Missing required columns: {sorted(missing)}')
+        rows = list(reader)
+    if max_vehicles is not None:
+        ids = sorted({r['vhcl_anon_id'] for r in rows}, key=lambda s: hashlib.sha256(('development:' + s).encode()).hexdigest())
+        keep = set(ids[:max_vehicles])
+        rows = [r for r in rows if r['vhcl_anon_id'] in keep]
+    return rows
+
+
+def load_fleet(path: str, max_vehicles: int | None = None) -> tuple[dict, int, int]:
+    """Stream a Parquet fleet one vehicle at a time, keeping raw rows out of RAM."""
+    if Path(path).suffix.lower() != '.parquet' or max_vehicles is not None:
+        rows = load_rows(path, max_vehicles)
+        return build_fleet(rows), len(rows), naive_flags(rows)
+    import duckdb
+    con = duckdb.connect()
+    con.read_parquet(path).create_view('input_rows')
+    columns = [r[0] for r in con.execute('DESCRIBE input_rows').fetchall() if not r[0].startswith('sixt_')]
+    selected = ', '.join('"' + c.replace('"', '""') + '"' for c in columns)
+    cur = con.execute(f'SELECT {selected} FROM input_rows ORDER BY vhcl_anon_id, vhcl_fct_taken_datm, vhcl_current_mileage, on_rent_status, rntl_handover_date')
+    fleet, count, starter = {}, 0, 0
+    group, previous = [], None
+    while batch := cur.fetchmany(10000):
+        for values in batch:
+            row = dict(zip(columns, ('' if x is None else str(x) for x in values)))
+            vid = row['vhcl_anon_id']
+            if previous is not None and previous != vid:
+                fleet.update(build_fleet(group))
+                starter += naive_flags(group)
+                group = []
+            group.append(row)
+            previous = vid
+            count += 1
+    if group:
+        fleet.update(build_fleet(group))
+        starter += naive_flags(group)
+    con.close()
+    return fleet, count, starter
 
 
 @dataclass
@@ -82,11 +150,14 @@ class Vehicle:
     obs_src: list[str] = field(default_factory=list)       # "return" (not on rent) or "handover" (OnRent, stale)
     obs_known: list[int] = field(default_factory=list)     # day each reading became available (row timestamp)
     rentals: list[tuple[int, int]] = field(default_factory=list)   # (handover_day, return_day), merged
+    rental_records: list[tuple[int, int, int]] = field(default_factory=list)  # handover, return/plan, row-known day
+    attributes: list[tuple[int, str, str, str, float | None]] = field(default_factory=list)
+    latest_recorded_day: int | None = None
     uti: list[tuple[int, float]] = field(default_factory=list)     # (day, planned utilisation)
     level: str = "?"
     vtype: str = "?"
     product: str = "?"                                     # most frequent rental_product over all rows (display)
-    products: list[tuple[int, str]] = field(default_factory=list)  # (handover_day, rental_product), sorted
+    products: list[tuple[int, str]] = field(default_factory=list)  # (known_day, rental_product), sorted
     region: str = "?"
     max_mileage: float | None = None
     defleet_day: int | None = None                         # first day with status_code >= 3 (defleet / sold)
@@ -97,11 +168,23 @@ class Vehicle:
 
     def view(self, day: int) -> "Vehicle":
         """The vehicle as seen on `day`: only readings whose row was written by then."""
-        if not self.obs_known or max(self.obs_known) <= day:
+        latest = self.latest_recorded_day if self.latest_recorded_day is not None else max(self.obs_known, default=0)
+        if latest <= day:
             return self
         keep = [j for j, k in enumerate(self.obs_known) if k <= day]
+        attrs = [a for a in self.attributes if a[0] <= day]
+        level, vtype, region, limit = attrs[-1][1:] if attrs else ('?', '?', '?', None)
         return replace(self, obs_day=[self.obs_day[j] for j in keep], obs_km=[self.obs_km[j] for j in keep],
-                       obs_src=[self.obs_src[j] for j in keep], obs_known=[self.obs_known[j] for j in keep])
+                       obs_src=[self.obs_src[j] for j in keep], obs_known=[self.obs_known[j] for j in keep],
+                       rentals=_merge(sorted({(a, b) for a, b, k in self.rental_records if k <= day}))
+                               if self.rental_records else self.rentals,
+                       rental_records=[r for r in self.rental_records if r[2] <= day],
+                       attributes=attrs, latest_recorded_day=day,
+                       products=[p for p in self.products if p[0] <= day],
+                       level=level if self.attributes else self.level,
+                       vtype=vtype if self.attributes else self.vtype,
+                       region=region if self.attributes else self.region,
+                       max_mileage=limit if self.attributes else self.max_mileage)
 
 
 def obs_day_of(row: dict) -> int | None:
@@ -127,10 +210,12 @@ def build_fleet(rows: list[dict]) -> dict[str, Vehicle]:
         if not vid or km is None or taken is None:
             continue
         v = fleet.setdefault(vid, Vehicle(vid))
+        v.latest_recorded_day = max(v.latest_recorded_day or taken, taken)
         v.level = r.get("vehicle_level") or v.level
         v.vtype = r.get("vehicle_type") or v.vtype
         v.region = r.get("brnc_region_code") or v.region
         v.max_mileage = _float(r.get("vhcl_max_mileage")) or v.max_mileage
+        v.attributes.append((taken, v.level, v.vtype, v.region, v.max_mileage))
         status = _float(r.get("status_code_anonymized"))
         if status is not None and status >= 3:
             v.defleet_day = taken if v.defleet_day is None else min(v.defleet_day, taken)
@@ -140,14 +225,15 @@ def build_fleet(rows: list[dict]) -> dict[str, Vehicle]:
         h, ret = _day(r.get("rntl_handover_date")), _day(r.get("rntl_return_date"))
         if h is not None and ret is not None and ret >= h:
             rent[vid].add((h, ret))
+            v.rental_records.append((h, ret, taken))
             if r.get("rental_product"):
                 products[vid][r["rental_product"]] += 1
-                v.products.append((h, r["rental_product"]))
+                v.products.append((taken, r["rental_product"]))
         on_rent = (r.get("on_rent_status") or "").strip() == "OnRent"
         raw[vid].append((obs_day_of(r), km, "handover" if on_rent and h is not None else "return", taken))  # type: ignore
     for vid, v in fleet.items():
         seen = set()
-        for d, km, src, known in sorted(raw[vid], key=lambda x: (x[0], x[1], x[3])):
+        for d, km, src, known in sorted(raw[vid], key=lambda x: (x[0], x[1], x[3], x[2] == 'handover')):
             if (d, km) in seen:          # same reading twice: keep the earliest-known copy
                 continue
             seen.add((d, km))
@@ -157,6 +243,8 @@ def build_fleet(rows: list[dict]) -> dict[str, Vehicle]:
             v.obs_known.append(known)
         v.rentals = _merge(sorted(rent[vid]))
         v.uti.sort()
+        v.attributes.sort(key=lambda a: a[0])
+        v.rental_records = sorted(set(v.rental_records))
         v.products = sorted(set(v.products))
         if products[vid]:
             v.product = products[vid].most_common(1)[0][0]
@@ -174,15 +262,21 @@ def _merge(iv: list[tuple[int, int]]) -> list[tuple[int, int]]:
 
 
 def product_at(v: Vehicle, day: int) -> str:
-    """Most frequent rental product among rentals handed over by `day` ("?" if none): no look-ahead."""
+    """Most frequent rental product recorded by `day` ("?" if none): no look-ahead."""
     seen = Counter(p for h, p in v.products if h <= day)
     return seen.most_common(1)[0][0] if seen else "?"
 
 
 def rental_days(v: Vehicle, start: int, end: int, known_by: int | None = None) -> float:
-    """Days in (start, end] the vehicle was on rent, using only rentals handed over by `known_by`."""
+    """Rental-covered days in (start,end], optionally restricted to rows recorded by known_by.
+
+    Without recorded availability metadata (manually constructed Vehicles), fall
+    back to handover-based availability. Future return dates may be plans.
+    """
     total = 0
-    for a, b in v.rentals:
+    intervals = (_merge(sorted({(a, b) for a, b, k in v.rental_records if k <= known_by}))
+                 if known_by is not None and v.rental_records else v.rentals)
+    for a, b in intervals:
         if known_by is not None and a > known_by:
             break
         lo, hi = max(a, start + 1), min(b, end)
@@ -280,8 +374,8 @@ class RentAware(NaiveLast):
     def fit(self, fleet: dict[str, Vehicle], train_ids: set[str], cutoff: int) -> "RentAware":
         groups: dict[tuple, list[Interval]] = defaultdict(list)
         util_num = util_den = 0.0
-        for vid in train_ids:
-            v = fleet[vid]
+        for vid in sorted(train_ids):
+            v = fleet[vid].view(cutoff)
             ints = _intervals(v, cutoff)
             for key in self._keys(v, cutoff):
                 groups[key] += ints
@@ -295,8 +389,8 @@ class RentAware(NaiveLast):
         self.util_ratio = 1.0
         # durations (inclusive days) of rentals completed by the cutoff, per rental product and overall
         self.durations: dict[str | None, list[int]] = defaultdict(list)
-        for vid in train_ids:
-            v = fleet[vid]
+        for vid in sorted(train_ids):
+            v = fleet[vid].view(cutoff)
             for a, b in v.rentals:
                 if b <= cutoff:
                     self.durations[product_at(v, a)].append(b - a + 1)
@@ -318,15 +412,16 @@ class RentAware(NaiveLast):
         window. ratio = sum(realised - expected running-rental days) / sum(plan * remaining days)."""
         num = den = 0.0
         for o in range(cutoff - PLAN_WINDOW, cutoff - PLAN_WINDOW - PLAN_LOOKBACK, -7):
-            for vid in train_ids:
-                v = fleet[vid]
+            for vid in sorted(train_ids):
+                full = fleet[vid]
+                v = full.view(o)
                 plan = planned_utilisation(v, o, None)
                 if plan is None or not v.obs_day or v.obs_day[0] > o or \
                         (v.defleet_day is not None and v.defleet_day <= o + PLAN_WINDOW):
                     continue
                 running = [a for a, b in v.rentals if a <= o < b]
                 on = self.expected_on_rent(product_at(v, o), o - running[-1] + 1, PLAN_WINDOW) if running else 0.0
-                num += rental_days(v, o, o + PLAN_WINDOW, known_by=o + PLAN_WINDOW) - on
+                num += rental_days(full, o, o + PLAN_WINDOW, known_by=o + PLAN_WINDOW) - on
                 den += plan * (PLAN_WINDOW - on)
         return min(max(num / den, 0.5), 2.0) if den > 0 else 1.0
 
@@ -371,14 +466,24 @@ class RentAware(NaiveLast):
         last_d, last_km = v.obs_day[n - 1], v.obs_km[n - 1]
         r_rent, r_idle = self.rates(v, cutoff)
         gap = max(target - last_d, 0)
-        if nowcast:   # rentals handed over by the target day are known (the car left the branch)
-            rd = rental_days(v, last_d, target, known_by=target)
+        if nowcast:   # only rental rows already recorded at the prediction origin
+            rd = rental_days(v, last_d, target, known_by=cutoff)
+            # After the latest recorded status, absence of a rental row does not
+            # mean the car is idle. Fill only that unobserved suffix from the plan.
+            latest_status = max(v.obs_known) if v.obs_known else cutoff
+            unknown_start = max(last_d, latest_status)
+            unobserved = max(0, target - unknown_start) - rental_days(v, unknown_start, target, known_by=cutoff)
+            rd += max(0, unobserved) * self.utilisation(v, cutoff)
         else:         # forecast: rental days up to the cutoff are known; after it, the (bias-corrected) plan.
             # The actual return date of a rental still running at the cutoff is only written when it ends, so it is
             # not used (that would be leakage).
             # A car on rent at the cutoff is known to be out (operational status), so its expected remaining rental
             # days come from the duration distribution of completed rentals, given the days it has already run.
             known = rental_days(v, last_d, min(target, cutoff), known_by=cutoff)
+            latest_status = max(v.obs_known) if v.obs_known else cutoff
+            unknown_start = max(last_d, latest_status)
+            unobserved = max(0, min(target, cutoff) - unknown_start) - rental_days(v, unknown_start, min(target, cutoff), known_by=cutoff)
+            known += max(0, unobserved) * self.utilisation(v, cutoff)
             rest = max(target - max(last_d, cutoff), 0)
             running = [a for a, b in v.rentals if a <= cutoff < b]
             on = self.expected_on_rent(product_at(v, cutoff), cutoff - running[-1] + 1, rest) if running and rest \
@@ -407,7 +512,36 @@ class Blend(NaiveLast):
         return None if any(p is None for p in ps) else float(sum(ps) / len(ps))  # type: ignore[arg-type]
 
 
-MODELS = (NaiveLast, MeanRate, RentAware, RentAwareRecent, Blend)
+class RobustRate(NaiveLast):
+    """Causal typo cleaning and winsorised calendar-day rate; no rental availability assumption.
+
+    Clean only observations already available at the origin. A typo at the latest
+    reading cannot be identified using a future neighbour. Rates are clipped at
+    the vehicle's 10th/90th percentiles before exposure-weighted averaging.
+    """
+    name = 'robust_rate'
+
+    def predict(self, v: Vehicle, cutoff: int, target: int, nowcast: bool = True) -> float | None:
+        seen = v.view(cutoff)
+        seen = without(seen, isolated_outliers(seen))
+        n = seen.known_before(cutoff + 1)
+        if not n:
+            return None
+        rates, days = [], []
+        for i in range(1, n):
+            gap = seen.obs_day[i] - seen.obs_day[i - 1]
+            gain = seen.obs_km[i] - seen.obs_km[i - 1]
+            if gap > 0 and 0 <= gain / gap <= MAX_KM_PER_DAY:
+                rates.append(gain / gap)
+                days.append(gap)
+        rate = 0.0
+        if rates:
+            lo, hi = np.quantile(rates, [0.1, 0.9])
+            rate = float(np.average(np.clip(rates, lo, hi), weights=days))
+        return seen.obs_km[n - 1] + rate * max(0, target - seen.obs_day[n - 1])
+
+
+MODELS = (NaiveLast, MeanRate, RentAware, RentAwareRecent, Blend, RobustRate)
 MODEL_BY_NAME = {m.name: m for m in MODELS}
 
 
@@ -418,17 +552,24 @@ def split_vehicles(fleet: dict[str, Vehicle], test_share: float = 0.2) -> tuple[
     if len(ids) < 10:
         return ids, ids
     test = {v for v in ids if int(hashlib.sha256(v.encode()).hexdigest()[:8], 16) / 0xFFFFFFFF < test_share}
+    if not test or test == ids:
+        ordered = sorted(ids, key=lambda s: hashlib.sha256(s.encode()).hexdigest())
+        test = set(ordered[:max(1, round(len(ids) * test_share))])
     return ids - test, test
 
 
 def global_cutoff(fleet: dict[str, Vehicle], q: float = 0.8) -> int:
     days = sorted(d for v in fleet.values() for d in v.obs_day)
+    if not days:
+        raise ValueError('No usable mileage readings were found in the input.')
     return days[int(q * (len(days) - 1))]
 
 
 def validation_cutoff(fleet: dict[str, Vehicle], cutoff: int, q: float = 0.75) -> int:
     """A cutoff before the test cutoff, at the q-quantile of the reading days up to it."""
     days = sorted(d for v in fleet.values() for d in v.obs_day if d <= cutoff)
+    if not days:
+        raise ValueError('The cutoff is earlier than every available reading.')
     return min(days[int(q * (len(days) - 1))], cutoff - 1)
 
 
@@ -452,7 +593,8 @@ Row = tuple[int, float, float, dict]   # (gap days since the last known reading,
 
 
 def predictions(fleet: dict[str, Vehicle], ids: set[str], cutoff: int, task: str, models: list,
-                upto: int | None = None) -> list[Row]:
+                upto: int | None = None, target_after: int | None = None,
+                segments: dict | None = None) -> list[Row]:
     """Targets: fresh return readings with cutoff < day <= upto. Nowcast origin = the day before each target
     (rolling); forecast origin = the cutoff (fixed)."""
     rows = []
@@ -461,13 +603,20 @@ def predictions(fleet: dict[str, Vehicle], ids: set[str], cutoff: int, task: str
         for j, (d, km) in enumerate(zip(v.obs_day, v.obs_km)):
             if d <= cutoff or (upto is not None and d > upto) or v.obs_src[j] != "return":
                 continue
+            if target_after is not None and d <= target_after:
+                continue
             origin = d - 1 if task == "nowcast" else cutoff
             seen = v.view(origin)
             n = seen.known_before(origin + 1)
             if n == 0:
                 continue
-            preds = {m.name: m.predict(v, origin, d, nowcast=(task == "nowcast")) for m in models}
-            rows.append((d - seen.obs_day[n - 1], km, km - seen.obs_km[n - 1], preds))
+            preds = {m.name: m.predict(seen, origin, d, nowcast=(task == "nowcast")) for m in models}
+            row = (d - seen.obs_day[n - 1], km, km - seen.obs_km[n - 1], preds)
+            rows.append(row)
+            if segments is not None:
+                segments.setdefault('product:' + product_at(v, origin), []).append(row)
+                if task == 'forecast':
+                    segments.setdefault('lead_time:' + _bucket(d - origin), []).append(row)
     return rows
 
 
@@ -511,7 +660,8 @@ def q_for(qs: dict[str, float], gap: int) -> float | None:
     return max(cands) if cands else None
 
 
-def backtest(fleet: dict[str, Vehicle], cutoff: int | None = None, alpha: float = ALPHA) -> dict:
+def backtest(fleet: dict[str, Vehicle], cutoff: int | None = None, alpha: float = ALPHA,
+             evaluate_test: bool = True) -> dict:
     """Nowcast and forecast backtest. Leakage-free protocol:
     1. validation: models fitted at a validation cutoff on training vehicles, scored on their readings up to the test
        cutoff -> choose the model per task (lowest MAE) and calibrate the interval width (conformal, |error|/sqrt(gap));
@@ -520,24 +670,32 @@ def backtest(fleet: dict[str, Vehicle], cutoff: int | None = None, alpha: float 
     cutoff = cutoff if cutoff is not None else global_cutoff(fleet)
     train, test = split_vehicles(fleet)
     val_cut = validation_cutoff(fleet, cutoff)
+    cal_cut = val_cut + (cutoff - val_cut) // 2
     val_models = [m().fit(fleet, train, val_cut) for m in MODELS]
-    models = [m().fit(fleet, train, cutoff) for m in MODELS]
-    names = [m.name for m in models]
+    models = [m().fit(fleet, train, cutoff) for m in MODELS] if evaluate_test else []
+    names = [m.name for m in val_models]
     res: dict = {"cutoff": date.fromordinal(cutoff).isoformat(),
                  "validation_cutoff": date.fromordinal(val_cut).isoformat(),
+                 "calibration_start": date.fromordinal(cal_cut).isoformat(),
                  "n_vehicles": len(fleet), "n_train_vehicles": len(train), "n_test_vehicles": len(test),
                  "alpha": alpha, "selected": {}, "validation": {}, "nowcast": {}, "forecast": {}, "intervals": {}}
     for task in ("nowcast", "forecast"):
-        val_rows = predictions(fleet, train, val_cut, task, val_models, upto=cutoff)
+        val_rows = predictions(fleet, train, val_cut, task, val_models, upto=cal_cut)
+        cal_rows = predictions(fleet, train, val_cut, task, val_models, upto=cutoff, target_after=cal_cut)
         val = _metrics(val_rows, names)
         res["validation"][task] = val
         scored = {n: g["all"]["MAE_km"] for n, g in val["models"].items() if "all" in g}
         res["selected"][task] = min(scored, key=scored.get) if scored else "rent_aware"  # type: ignore[arg-type]
-        rows = predictions(fleet, test, cutoff, task, models)
+        if not evaluate_test:
+            continue
+        segments = {}
+        rows = predictions(fleet, test, cutoff, task, models, segments=segments)
         res[task] = _metrics(rows, names)
+        res[task]['by_segment'] = {key: _metrics(xs, names) for key, xs in segments.items()}
+        res[task]['calibration_targets'] = len(cal_rows)
         res["intervals"][task] = {}
         for name in names:
-            res["intervals"][task][name] = _coverage(rows, name, interval_q(val_rows, name, alpha))
+            res["intervals"][task][name] = _coverage(rows, name, interval_q(cal_rows, name, alpha))
     return res
 
 
@@ -577,18 +735,24 @@ def _summ(v: list) -> dict:
     km = np.array([k for _, k, _ in v])
     inc = np.array([i for _, _, i in v])
     return {"n": int(len(v)), "MAE_km": float(np.abs(err).mean()), "bias_km": float(err.mean()),
+            "zero_odometer_targets": int((km == 0).sum()),
             "MAPE_odometer": float((np.abs(err) / np.maximum(km, 1)).mean()),
             "WAPE_distance": float(np.abs(err).sum() / max(np.abs(inc).sum(), 1.0))}
 
 
-def nowcast_table(fleet: dict[str, Vehicle], asof: int, model_name: str = "rent_aware", alpha: float = ALPHA) -> list[dict]:
+def nowcast_table(fleet: dict[str, Vehicle], asof: int, model_name: str = "rent_aware", alpha: float = ALPHA,
+                  target: int | None = None) -> list[dict]:
     """Today's estimate per vehicle: the product output. Model fitted on all vehicles with data up to `asof`; interval
     width calibrated on nowcasts of the 60 days before `asof`."""
     cls = MODEL_BY_NAME[model_name]
+    target = asof if target is None else target
+    if target < asof:
+        raise ValueError('Forecast target cannot be before the as-of date')
+    task = 'nowcast' if target == asof else 'forecast'
     ids = set(fleet)
     cal_cut = asof - 60
     cal = cls().fit(fleet, ids, cal_cut)
-    qs = interval_q(predictions(fleet, ids, cal_cut, "nowcast", [cal], upto=asof), cal.name, alpha)
+    qs = interval_q(predictions(fleet, ids, cal_cut, task, [cal], upto=asof), cal.name, alpha)
     m = cls().fit(fleet, ids, asof)
     out = []
     for vid in sorted(fleet):
@@ -597,17 +761,23 @@ def nowcast_table(fleet: dict[str, Vehicle], asof: int, model_name: str = "rent_
         n = v.known_before(asof + 1)
         if n == 0:
             continue
-        pred = m.predict(full, asof, asof, nowcast=True)
-        gap = asof - v.obs_day[n - 1]
+        pred = m.predict(full, asof, target, nowcast=task == 'nowcast')
+        gap = target - v.obs_day[n - 1]
         q = q_for(qs, gap)
         half = None if q is None or pred is None else q * _scale(gap)
         out.append({"vhcl_anon_id": vid, "asof": date.fromordinal(asof).isoformat(),
+                    'target_date': date.fromordinal(target).isoformat(), 'model': model_name,
                     "last_reading_date": date.fromordinal(v.obs_day[n - 1]).isoformat(), "last_km": v.obs_km[n - 1],
                     "gap_days": gap, "rental_days_in_gap": rental_days(v, v.obs_day[n - 1], asof, known_by=asof),
                     "nowcast_km": round(pred, 0) if pred is not None else None,
                     "low_km": None if half is None else round(max(pred - half, v.obs_km[n - 1]), 0),
                     "high_km": None if half is None else round(pred + half, 0),
                     "in_defleet": full.defleet_day is not None and v.defleet_day <= asof})
+        out[-1]['quality_status'] = ('insufficient_calibration' if half is None else
+                                     'stale_over_30_days' if asof - v.obs_day[n - 1] > 30 else 'estimated')
+        out[-1]['mileage_limit_alert'] = (v.max_mileage is not None and pred is not None and pred > v.max_mileage)
+        if task == 'forecast':
+            out[-1]['forecast_km'] = out[-1].pop('nowcast_km')
     return out
 
 
@@ -690,7 +860,7 @@ def flags(fleet: dict[str, Vehicle], model: RentAware | None = None) -> list[dic
             if km - k0 > IDLE_MOVE_KM and rd == 0:
                 out.append({**row, "rule": "moved_without_rental",
                             "detail": f"+{km - k0:.0f} km with no known rental", "score": float(km - k0)})
-            if abs(km - k0) <= DECREASE_TOL_KM and rd >= STUCK_RENTAL_DAYS:
+            if cv.obs_src[j] == 'return' and abs(km - k0) <= DECREASE_TOL_KM and rd >= STUCK_RENTAL_DAYS:
                 expected = model.rates(cv.view(d), d0)[0] * rd
                 out.append({**row, "rule": "no_movement_on_rent",
                             "detail": f"{km - k0:+.0f} km over {rd:.0f} rental days (about {expected:.0f} expected)",

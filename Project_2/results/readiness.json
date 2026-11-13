@@ -1,0 +1,78 @@
+{
+  "checks": [
+    {
+      "check": "Submission contains no unfinished placeholders",
+      "pass": true
+    },
+    {
+      "check": "Submission section: Authors",
+      "pass": true
+    },
+    {
+      "check": "Submission section: Problem and approach",
+      "pass": true
+    },
+    {
+      "check": "Submission section: Models and why",
+      "pass": true
+    },
+    {
+      "check": "Submission section: Results",
+      "pass": true
+    },
+    {
+      "check": "Submission section: How to run",
+      "pass": true
+    },
+    {
+      "check": "Submission section: Demo",
+      "pass": true
+    },
+    {
+      "check": "Submission section: Next steps",
+      "pass": true
+    },
+    {
+      "check": "Required PDF deck exists and has 1\u20135 pages",
+      "pass": true
+    },
+    {
+      "check": "Fleet evaluation uses supplied development sample",
+      "pass": true
+    },
+    {
+      "check": "Separate selection/calibration/test cutoffs",
+      "pass": true
+    },
+    {
+      "check": "Held-out targets exist: nowcast",
+      "pass": true
+    },
+    {
+      "check": "Held-out targets exist: forecast",
+      "pass": true
+    },
+    {
+      "check": "Masked-file inference has an aggregate report",
+      "pass": true
+    },
+    {
+      "check": "Every masked target has an estimate or explicit unsupported status",
+      "pass": true
+    },
+    {
+      "check": "No supplied dataset files tracked in git (permission unresolved)",
+      "pass": false
+    },
+    {
+      "check": "No credential patterns in Project 2 submission-source text",
+      "pass": true
+    }
+  ],
+  "pdf_pages": 5,
+  "tracked_data_paths": [
+    "Project_2/data/data_30_percent_sample.parquet",
+    "Project_2/data/test_data.parquet"
+  ],
+  "secret_pattern_file_count": 0
+}

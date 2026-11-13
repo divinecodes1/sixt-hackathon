@@ -1,0 +1,704 @@
+{
+ "cutoff": "2025-10-27",
+ "validation_cutoff": "2025-03-11",
+ "calibration_start": "2025-07-04",
+ "n_vehicles": 1000,
+ "n_train_vehicles": 804,
+ "n_test_vehicles": 196,
+ "alpha": 0.1,
+ "selected": {
+  "nowcast": "rent_aware_recent",
+  "forecast": "mean_rate"
+ },
+ "validation": {
+  "nowcast": {
+   "n": 1394,
+   "models": {
+    "naive_last": {
+     "all": {
+      "n": 1394,
+      "MAE_km": 590.6370157819225,
+      "bias_km": -584.0,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.08281516831905525,
+      "WAPE_distance": 1.0,
+      "skill_vs_naive": 0.0
+     },
+     "1-7d": {
+      "n": 1012,
+      "MAE_km": 361.64130434782606,
+      "bias_km": -355.3211462450593,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.0655214593904753,
+      "WAPE_distance": 1.0,
+      "skill_vs_naive": 0.0
+     },
+     "8-14d": {
+      "n": 244,
+      "MAE_km": 990.5655737704918,
+      "bias_km": -990.5655737704918,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.11841348129802588,
+      "WAPE_distance": 1.0,
+      "skill_vs_naive": 0.0
+     },
+     "15-30d": {
+      "n": 114,
+      "MAE_km": 1550.4736842105262,
+      "bias_km": -1525.719298245614,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.14282287046280545,
+      "WAPE_distance": 1.0,
+      "skill_vs_naive": 0.0
+     },
+     "31-60d": {
+      "n": 23,
+      "MAE_km": 1691.2173913043478,
+      "bias_km": -1691.2173913043478,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.17222756645978574,
+      "WAPE_distance": 1.0,
+      "skill_vs_naive": 0.0
+     },
+     ">60d": {
+      "n": 1,
+      "MAE_km": 17.0,
+      "bias_km": 17.0,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.0006970355488129894,
+      "WAPE_distance": 1.0,
+      "skill_vs_naive": 0.0
+     }
+    },
+    "mean_rate": {
+     "all": {
+      "n": 1394,
+      "MAE_km": 416.04817578584505,
+      "bias_km": -78.32763815387182,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.06034984449489441,
+      "WAPE_distance": 0.70440586124636,
+      "skill_vs_naive": 0.29559413875364005
+     },
+     "1-7d": {
+      "n": 1012,
+      "MAE_km": 248.42940523728447,
+      "bias_km": -75.1074218937919,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.04793654640892319,
+      "WAPE_distance": 0.6869497544958123,
+      "skill_vs_naive": 0.3130502455041877
+     },
+     "8-14d": {
+      "n": 244,
+      "MAE_km": 632.1896125776003,
+      "bias_km": -236.73746496605577,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.06935601486246801,
+      "WAPE_distance": 0.6382107649584791,
+      "skill_vs_naive": 0.36178923504152094
+     },
+     "15-30d": {
+      "n": 114,
+      "MAE_km": 1076.1402983755825,
+      "bias_km": 35.99122346786797,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.12543592532814724,
+      "WAPE_distance": 0.694071953193797,
+      "skill_vs_naive": 0.3059280468062029
+     },
+     "31-60d": {
+      "n": 23,
+      "MAE_km": 2113.5157043789395,
+      "bias_km": 759.3672645883106,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.18563887964431658,
+      "WAPE_distance": 1.2497007866912337,
+      "skill_vs_naive": -0.24970078669123374
+     },
+     ">60d": {
+      "n": 1,
+      "MAE_km": 3015.478260869564,
+      "bias_km": 3015.478260869564,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.12364091438228562,
+      "WAPE_distance": 177.38107416879788,
+      "skill_vs_naive": -176.38107416879788
+     }
+    },
+    "rent_aware": {
+     "all": {
+      "n": 1394,
+      "MAE_km": 391.9993639777058,
+      "bias_km": -169.64552143526012,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.04680072865222742,
+      "WAPE_distance": 0.6636891246288591,
+      "skill_vs_naive": 0.3363108753711409
+     },
+     "1-7d": {
+      "n": 1012,
+      "MAE_km": 238.25402961956547,
+      "bias_km": -116.50255608074767,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.03871132304833146,
+      "WAPE_distance": 0.6588131022512105,
+      "skill_vs_naive": 0.3411868977487895
+     },
+     "8-14d": {
+      "n": 244,
+      "MAE_km": 616.7736007889953,
+      "bias_km": -377.02603092016665,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.054403740989108065,
+      "WAPE_distance": 0.622647926720597,
+      "skill_vs_naive": 0.377352073279403
+     },
+     "15-30d": {
+      "n": 114,
+      "MAE_km": 1036.474103065045,
+      "bias_km": -280.71979799352033,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.08678219773910237,
+      "WAPE_distance": 0.6684886777635308,
+      "skill_vs_naive": 0.33151132223646906
+     },
+     "31-60d": {
+      "n": 23,
+      "MAE_km": 1481.8255745218212,
+      "bias_km": 122.16945803287767,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.12130509383512751,
+      "WAPE_distance": 0.8761887041493621,
+      "skill_vs_naive": 0.12381129585063788
+     },
+     ">60d": {
+      "n": 1,
+      "MAE_km": 2601.2408539897842,
+      "bias_km": 2601.2408539897842,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.10665631448561992,
+      "WAPE_distance": 153.014167881752,
+      "skill_vs_naive": -152.014167881752
+     }
+    },
+    "rent_aware_recent": {
+     "all": {
+      "n": 1394,
+      "MAE_km": 381.0556544799921,
+      "bias_km": -185.64512210100574,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.04596801587777781,
+      "WAPE_distance": 0.6451604696253698,
+      "skill_vs_naive": 0.35483953037463023
+     },
+     "1-7d": {
+      "n": 1012,
+      "MAE_km": 238.77584744782854,
+      "bias_km": -124.27102359693527,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.038567130169466377,
+      "WAPE_distance": 0.6602560177091229,
+      "skill_vs_naive": 0.3397439822908771
+     },
+     "8-14d": {
+      "n": 244,
+      "MAE_km": 592.7411708645253,
+      "bias_km": -382.7013948728229,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.05294463039515501,
+      "WAPE_distance": 0.5983866051475154,
+      "skill_vs_naive": 0.4016133948524846
+     },
+     "15-30d": {
+      "n": 114,
+      "MAE_km": 977.7162243279352,
+      "bias_km": -360.8199871401528,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.08185516531075022,
+      "WAPE_distance": 0.6305919502437547,
+      "skill_vs_naive": 0.3694080497562453
+     },
+     "31-60d": {
+      "n": 23,
+      "MAE_km": 1367.7854030996984,
+      "bias_km": -22.49002774095377,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.11814687300828526,
+      "WAPE_distance": 0.8087578865569711,
+      "skill_vs_naive": 0.19124211344302877
+     },
+     ">60d": {
+      "n": 1,
+      "MAE_km": 2002.8651922846584,
+      "bias_km": 2002.8651922846584,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.0821216610883865,
+      "WAPE_distance": 117.81559954615638,
+      "skill_vs_naive": -116.81559954615638
+     }
+    },
+    "blend": {
+     "all": {
+      "n": 1394,
+      "MAE_km": 395.0012495855367,
+      "bias_km": -123.98657979456596,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.04995205282860414,
+      "WAPE_distance": 0.6687715788733781,
+      "skill_vs_naive": 0.3312284211266219
+     },
+     "1-7d": {
+      "n": 1012,
+      "MAE_km": 238.65837186635437,
+      "bias_km": -95.8049889872698,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.04099979849628964,
+      "WAPE_distance": 0.6599311776533499,
+      "skill_vs_naive": 0.34006882234665015
+     },
+     "8-14d": {
+      "n": 244,
+      "MAE_km": 605.7058509646444,
+      "bias_km": -306.8817479431112,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.056943286269893985,
+      "WAPE_distance": 0.6114747645217304,
+      "skill_vs_naive": 0.38852523547826945
+     },
+     "15-30d": {
+      "n": 114,
+      "MAE_km": 1032.4476823590312,
+      "bias_km": -122.36428726282583,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.09378439346452781,
+      "WAPE_distance": 0.6658917806042837,
+      "skill_vs_naive": 0.33410821939571633
+     },
+     "31-60d": {
+      "n": 23,
+      "MAE_km": 1774.3411570328258,
+      "bias_km": 440.7683613105944,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.14959279328629557,
+      "WAPE_distance": 1.0491502548140004,
+      "skill_vs_naive": -0.049150254814000593
+     },
+     ">60d": {
+      "n": 1,
+      "MAE_km": 2808.359557429674,
+      "bias_km": 2808.359557429674,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.11514861443395277,
+      "WAPE_distance": 165.19762102527494,
+      "skill_vs_naive": -164.19762102527494
+     }
+    },
+    "robust_rate": {
+     "all": {
+      "n": 1394,
+      "MAE_km": 404.0560427272805,
+      "bias_km": -178.50829384788423,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.057820759549143695,
+      "WAPE_distance": 0.6841021336808117,
+      "skill_vs_naive": 0.31589786631918826
+     },
+     "1-7d": {
+      "n": 1012,
+      "MAE_km": 242.28738002069377,
+      "bias_km": -127.3061006294076,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.0472662403329698,
+      "WAPE_distance": 0.6699660052870015,
+      "skill_vs_naive": 0.33003399471299844
+     },
+     "8-14d": {
+      "n": 244,
+      "MAE_km": 621.4315232354609,
+      "bias_km": -375.26532260181534,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.06732889945314487,
+      "WAPE_distance": 0.6273502125356951,
+      "skill_vs_naive": 0.3726497874643049
+     },
+     "15-30d": {
+      "n": 114,
+      "MAE_km": 1036.630319398257,
+      "bias_km": -345.7436383688293,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.10888216515986976,
+      "WAPE_distance": 0.6685894317039573,
+      "skill_vs_naive": 0.33141056829604254
+     },
+     "31-60d": {
+      "n": 23,
+      "MAE_km": 1988.1311027191734,
+      "bias_km": 367.19974627857175,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.16627250531346355,
+      "WAPE_distance": 1.1755621204828266,
+      "skill_vs_naive": -0.1755621204828266
+     },
+     ">60d": {
+      "n": 1,
+      "MAE_km": 2527.131537492125,
+      "bias_km": 2527.131537492125,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.1036176775387316,
+      "WAPE_distance": 148.6547963230662,
+      "skill_vs_naive": -147.6547963230662
+     }
+    }
+   }
+  },
+  "forecast": {
+   "n": 1110,
+   "models": {
+    "naive_last": {
+     "all": {
+      "n": 1110,
+      "MAE_km": 4942.475675675676,
+      "bias_km": -4942.475675675676,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.2735418250773917,
+      "WAPE_distance": 1.0,
+      "skill_vs_naive": 0.0
+     },
+     "1-7d": {
+      "n": 30,
+      "MAE_km": 371.56666666666666,
+      "bias_km": -371.56666666666666,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.06261069991163719,
+      "WAPE_distance": 1.0,
+      "skill_vs_naive": 0.0
+     },
+     "8-14d": {
+      "n": 50,
+      "MAE_km": 962.44,
+      "bias_km": -962.44,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.11297153305419938,
+      "WAPE_distance": 1.0,
+      "skill_vs_naive": 0.0
+     },
+     "15-30d": {
+      "n": 161,
+      "MAE_km": 1887.27950310559,
+      "bias_km": -1887.27950310559,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.1435085618394461,
+      "WAPE_distance": 1.0,
+      "skill_vs_naive": 0.0
+     },
+     "31-60d": {
+      "n": 313,
+      "MAE_km": 3880.1309904153354,
+      "bias_km": -3880.1309904153354,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.2699828807940912,
+      "WAPE_distance": 1.0,
+      "skill_vs_naive": 0.0
+     },
+     ">60d": {
+      "n": 556,
+      "MAE_km": 7029.758992805755,
+      "bias_km": -7029.758992805755,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.3390197986351518,
+      "WAPE_distance": 1.0,
+      "skill_vs_naive": 0.0
+     }
+    },
+    "mean_rate": {
+     "all": {
+      "n": 1110,
+      "MAE_km": 1975.3685692070242,
+      "bias_km": -747.7183005885094,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.12603222215422236,
+      "WAPE_distance": 0.3996718848670865,
+      "skill_vs_naive": 0.6003281151329135
+     },
+     "1-7d": {
+      "n": 30,
+      "MAE_km": 198.0832202302916,
+      "bias_km": -88.34188865404738,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.04248294661651132,
+      "WAPE_distance": 0.5331027726660759,
+      "skill_vs_naive": 0.46689722733392414
+     },
+     "8-14d": {
+      "n": 50,
+      "MAE_km": 471.25150762873074,
+      "bias_km": -172.4775638145028,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.05115278299085699,
+      "WAPE_distance": 0.48964247914543324,
+      "skill_vs_naive": 0.5103575208545668
+     },
+     "15-30d": {
+      "n": 161,
+      "MAE_km": 875.0521204729936,
+      "bias_km": -253.19763825879267,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.06734276976782466,
+      "WAPE_distance": 0.463657936746021,
+      "skill_vs_naive": 0.536342063253979
+     },
+     "31-60d": {
+      "n": 313,
+      "MAE_km": 1916.2976089308972,
+      "bias_km": -698.9788594767908,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.1419068372566596,
+      "WAPE_distance": 0.4938744629149166,
+      "skill_vs_naive": 0.5061255370850835
+     },
+     ">60d": {
+      "n": 556,
+      "MAE_km": 2558.398375611382,
+      "bias_km": -1005.6618273866865,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.14533203785826335,
+      "WAPE_distance": 0.36393827700631604,
+      "skill_vs_naive": 0.636061722993684
+     }
+    },
+    "rent_aware": {
+     "all": {
+      "n": 1110,
+      "MAE_km": 2125.328958438587,
+      "bias_km": -1392.792119905319,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.1195467025057654,
+      "WAPE_distance": 0.43001303352859443,
+      "skill_vs_naive": 0.5699869664714055
+     },
+     "1-7d": {
+      "n": 30,
+      "MAE_km": 226.89085095991493,
+      "bias_km": -118.65563981169086,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.03944795146219223,
+      "WAPE_distance": 0.6106329531530859,
+      "skill_vs_naive": 0.38936704684691414
+     },
+     "8-14d": {
+      "n": 50,
+      "MAE_km": 541.4411874442781,
+      "bias_km": -317.35423926851763,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.057914623014181155,
+      "WAPE_distance": 0.5625713680273867,
+      "skill_vs_naive": 0.4374286319726133
+     },
+     "15-30d": {
+      "n": 161,
+      "MAE_km": 919.4384758343131,
+      "bias_km": -472.4471748185577,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.06173212633670514,
+      "WAPE_distance": 0.48717663404988093,
+      "skill_vs_naive": 0.5128233659501191
+     },
+     "31-60d": {
+      "n": 313,
+      "MAE_km": 1808.9749268013643,
+      "bias_km": -1196.940084613545,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.11955094171773603,
+      "WAPE_distance": 0.4662149116279522,
+      "skill_vs_naive": 0.5337850883720479
+     },
+     ">60d": {
+      "n": 556,
+      "MAE_km": 2897.477719905879,
+      "bias_km": -1935.0101264519785,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.14614991544777678,
+      "WAPE_distance": 0.41217312327081956,
+      "skill_vs_naive": 0.5878268767291804
+     }
+    },
+    "rent_aware_recent": {
+     "all": {
+      "n": 1110,
+      "MAE_km": 2145.5153902526868,
+      "bias_km": -1531.5753682413758,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.11899857649418741,
+      "WAPE_distance": 0.434097308927955,
+      "skill_vs_naive": 0.565902691072045
+     },
+     "1-7d": {
+      "n": 30,
+      "MAE_km": 224.1062583985392,
+      "bias_km": -132.08731455098774,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.039181341255597475,
+      "WAPE_distance": 0.6031387594829261,
+      "skill_vs_naive": 0.39686124051707394
+     },
+     "8-14d": {
+      "n": 50,
+      "MAE_km": 514.3443703756775,
+      "bias_km": -332.88577582681114,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.05684964346630993,
+      "WAPE_distance": 0.5344170757404904,
+      "skill_vs_naive": 0.46558292425950976
+     },
+     "15-30d": {
+      "n": 161,
+      "MAE_km": 866.9002589619511,
+      "bias_km": -535.9914587282108,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.059384173687726874,
+      "WAPE_distance": 0.45933856513326926,
+      "skill_vs_naive": 0.5406614348667307
+     },
+     "31-60d": {
+      "n": 313,
+      "MAE_km": 1839.4139578908855,
+      "bias_km": -1299.3403532792634,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.12013358137311213,
+      "WAPE_distance": 0.4740597578882232,
+      "skill_vs_naive": 0.5259402421117768
+     },
+     ">60d": {
+      "n": 556,
+      "MAE_km": 2938.4427453183825,
+      "bias_km": -2133.909343684183,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.1455176880648498,
+      "WAPE_distance": 0.41800049593813676,
+      "skill_vs_naive": 0.5819995040618633
+     }
+    },
+    "blend": {
+     "all": {
+      "n": 1110,
+      "MAE_km": 1988.2536966514765,
+      "bias_km": -1070.255210246914,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.11887581361851961,
+      "WAPE_distance": 0.402278903755994,
+      "skill_vs_naive": 0.597721096244006
+     },
+     "1-7d": {
+      "n": 30,
+      "MAE_km": 210.89161433431101,
+      "bias_km": -103.4987642328692,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.04089807288243717,
+      "WAPE_distance": 0.5675740943777995,
+      "skill_vs_naive": 0.4324259056222005
+     },
+     "8-14d": {
+      "n": 50,
+      "MAE_km": 504.6752705324358,
+      "bias_km": -244.9159015415101,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.05430781098588324,
+      "WAPE_distance": 0.524370631449686,
+      "skill_vs_naive": 0.475629368550314
+     },
+     "15-30d": {
+      "n": 161,
+      "MAE_km": 885.0380544921283,
+      "bias_km": -362.8224065386752,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.0626320855988678,
+      "WAPE_distance": 0.4689491159289149,
+      "skill_vs_naive": 0.531050884071085
+     },
+     "31-60d": {
+      "n": 313,
+      "MAE_km": 1814.0182064691671,
+      "bias_km": -947.9594720451679,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.12680885905549671,
+      "WAPE_distance": 0.467514682094532,
+      "skill_vs_naive": 0.532485317905468
+     },
+     ">60d": {
+      "n": 556,
+      "MAE_km": 2635.1119890798664,
+      "bias_km": -1470.3359769193326,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.14071021891187283,
+      "WAPE_distance": 0.37485097167294584,
+      "skill_vs_naive": 0.6251490283270542
+     }
+    },
+    "robust_rate": {
+     "all": {
+      "n": 1110,
+      "MAE_km": 2092.0163721739254,
+      "bias_km": -1420.690101249819,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.13197892253955526,
+      "WAPE_distance": 0.42327297278765674,
+      "skill_vs_naive": 0.5767270272123433
+     },
+     "1-7d": {
+      "n": 30,
+      "MAE_km": 218.41236304061476,
+      "bias_km": -128.2600869211456,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.046056582842827445,
+      "WAPE_distance": 0.587814738603969,
+      "skill_vs_naive": 0.41218526139603096
+     },
+     "8-14d": {
+      "n": 50,
+      "MAE_km": 528.9858811814482,
+      "bias_km": -308.40119402413916,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.06003820487945151,
+      "WAPE_distance": 0.5496299833563113,
+      "skill_vs_naive": 0.4503700166436887
+     },
+     "15-30d": {
+      "n": 161,
+      "MAE_km": 884.6120171176927,
+      "bias_km": -529.0422294392093,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.06729453422365757,
+      "WAPE_distance": 0.46872337439262707,
+      "skill_vs_naive": 0.5312766256073729
+     },
+     "31-60d": {
+      "n": 313,
+      "MAE_km": 1876.0835245862668,
+      "bias_km": -1226.8589436193818,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.14423134415350913,
+      "WAPE_distance": 0.483510358083413,
+      "skill_vs_naive": 0.516489641916587
+     },
+     ">60d": {
+      "n": 556,
+      "MAE_km": 2804.855809732584,
+      "bias_km": -1957.7616938594942,
+      "zero_odometer_targets": 0,
+      "MAPE_odometer": 0.1549175639561002,
+      "WAPE_distance": 0.3989974354174971,
+      "skill_vs_naive": 0.6010025645825028
+     }
+    }
+   }
+  }
+ },
+ "nowcast": {},
+ "forecast": {},
+ "intervals": {},
+ "input": "data_30_percent_sample.parquet",
+ "input_rows": 95501,
+ "distinct_readings": 66417,
+ "max_vehicles": 1000
+}

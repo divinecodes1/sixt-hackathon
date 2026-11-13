@@ -3,6 +3,11 @@ from __future__ import annotations
 
 import random
 import unittest
+import tempfile
+import json
+import subprocess
+import sys
+from pathlib import Path
 from datetime import date, timedelta
 
 import mileage as M
@@ -56,7 +61,7 @@ class Data(unittest.TestCase):
 
 
 class Models(unittest.TestCase):
-    def test_rent_aware_recovers_rates_and_beats_baselines(self):
+    def test_rent_aware_recovers_rates_and_models_beat_last_reading(self):
         fleet = M.build_fleet(synth_rows())
         m = M.RentAware().fit(fleet, set(fleet), 10**7)
         r_rent, r_idle = m.fleet_prior
@@ -64,7 +69,7 @@ class Models(unittest.TestCase):
         self.assertLess(r_idle, 60)
         res = M.backtest(fleet)
         now = res["nowcast"]["models"]
-        self.assertLess(now["rent_aware"]["all"]["MAE_km"], now["mean_rate"]["all"]["MAE_km"])
+        self.assertLess(now["rent_aware"]["all"]["MAE_km"], now["naive_last"]["all"]["MAE_km"])
         self.assertLess(now["mean_rate"]["all"]["MAE_km"], now["naive_last"]["all"]["MAE_km"])
 
     def test_no_leakage_after_cutoff(self):
@@ -233,6 +238,125 @@ class FleetScale(unittest.TestCase):
                 self.assertLessEqual(t["low_km"], t["nowcast_km"])
                 self.assertLessEqual(t["nowcast_km"], t["high_km"])
                 self.assertGreaterEqual(t["low_km"], t["last_km"])
+
+
+class InputAndCausality(unittest.TestCase):
+    def test_masked_inference_preserves_table_and_does_not_invent_errors(self):
+        import duckdb
+        import synth_fleet
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            con = duckdb.connect()
+            for name, seed in (('development', 91), ('masked', 92)):
+                rows = synth_fleet.generate(n_vehicles=12, days=180, seed=seed)
+                for row in rows:
+                    row['sixt_predicted_mileage_interp'] = None
+                    row['sixt_error'] = None
+                if name == 'masked':
+                    candidates = [i for i, row in enumerate(rows) if row['on_rent_status'] == 'NotOnRent']
+                    for i in candidates[-3:]:
+                        rows[i]['vhcl_current_mileage'] = None
+                    rows.append({**rows[0], 'vhcl_anon_id': 'new-without-history',
+                                 'vhcl_fct_taken_datm': '2024-08-01 00:00:00.000',
+                                 'vhcl_current_mileage': None})
+                source = root / (name + '.json')
+                source.write_text(json.dumps(rows))
+                relation = con.read_json(str(source))
+                relation.create_view('raw')
+                con.sql('SELECT * REPLACE (CAST(sixt_predicted_mileage_interp AS DOUBLE) AS sixt_predicted_mileage_interp, CAST(sixt_error AS DOUBLE) AS sixt_error) FROM raw').write_parquet(str(root / (name + '.parquet')))
+            con.close()
+            (root / 'metrics.json').write_text(json.dumps({'selected': {'nowcast': 'mean_rate', 'forecast': 'mean_rate'}}))
+            script = Path(__file__).parent / 'predict_missing.py'
+            run = subprocess.run([sys.executable, str(script), '--development', str(root / 'development.parquet'),
+                            '--input', str(root / 'masked.parquet'), '--metrics', str(root / 'metrics.json'),
+                            '--prior-vehicles', '12'], cwd=root, capture_output=True, text=True)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            summary = json.loads((root / 'results/test_inference_summary.json').read_text())
+            self.assertEqual(summary['masked_targets'], 4)
+            self.assertEqual(summary['predicted'] + summary['unsupported'], 4)
+            self.assertGreater(summary['fleet_prior_predictions'], 0)
+            con = duckdb.connect()
+            con.read_parquet(str(root / 'results/local/test_completed.parquet')).create_view('done')
+            self.assertEqual(con.execute('SELECT count(sixt_error) FROM done').fetchone()[0], 0)
+            con.close()
+
+    def test_future_duplicate_does_not_make_future_attributes_available(self):
+        rows = [dict(vhcl_anon_id='v', vhcl_fct_taken_datm='2024-01-02', vhcl_current_mileage='100',
+                     on_rent_status='OnRent', rntl_handover_date='2024-01-01',
+                     rntl_return_date='2024-01-10', vehicle_level='Past'),
+                dict(vhcl_anon_id='v', vhcl_fct_taken_datm='2024-02-01', vhcl_current_mileage='100',
+                     on_rent_status='OnRent', rntl_handover_date='2024-01-01',
+                     rntl_return_date='2024-03-01', vehicle_level='Future')]
+        v = M.build_fleet(rows)['v'].view(M._day('2024-01-05'))
+        self.assertEqual(v.level, 'Past')
+        self.assertEqual(v.rentals, [(M._day('2024-01-01'), M._day('2024-01-10'))])
+
+    def test_empty_input_has_actionable_error(self):
+        with self.assertRaisesRegex(ValueError, 'No usable'):
+            M.backtest({})
+
+    def test_forecast_export_rejects_past_target(self):
+        with self.assertRaisesRegex(ValueError, 'before'):
+            M.nowcast_table({}, 100, target=99)
+
+    def test_all_future_row_fields_cannot_change_origin_predictions(self):
+        rows = synth_rows(n_vehicles=12)
+        fleet = M.build_fleet(rows)
+        cutoff = M.global_cutoff(fleet)
+        changed = [dict(r) for r in rows]
+        day = date.fromordinal(cutoff).isoformat()
+        for r in changed:
+            if r['vhcl_fct_taken_datm'][:10] > day:
+                r.update(vhcl_current_mileage='999999', rntl_handover_date='2020-01-01',
+                         rntl_return_date='2030-01-01', rental_product='FutureOnly',
+                         vehicle_level='FutureOnly', vehicle_type='FutureOnly', uti_plan='0.01')
+        other = M.build_fleet(changed)
+        for cls in M.MODELS:
+            a = cls().fit(fleet, set(fleet), cutoff)
+            b = cls().fit(other, set(other), cutoff)
+            for vid in ('V01', 'V07'):
+                for nowcast in (True, False):
+                    self.assertAlmostEqual(a.predict(fleet[vid], cutoff, cutoff + 1, nowcast),
+                                           b.predict(other[vid], cutoff, cutoff + 1, nowcast), msg=cls.name)
+
+    def test_nonfinite_readings_are_rejected(self):
+        for value in ('NaN', 'inf', '-inf', ''):
+            self.assertIsNone(M._float(value))
+
+    def test_parquet_stream_and_csv_normalisation_agree(self):
+        import duckdb
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp) / 'fleet.parquet'
+            con = duckdb.connect()
+            sample = str(Path(__file__).parent / 'example_file.csv')
+            con.read_csv(sample, all_varchar=True).write_parquet(str(p))
+            con.close()
+            expected = M.build_fleet(M.load_rows(sample))
+            actual, n, _ = M.load_fleet(str(p))
+            self.assertEqual(n, 57)
+            self.assertEqual(actual, expected)
+
+    def test_robust_rate_cannot_use_future_neighbour(self):
+        v = M.Vehicle('x', obs_day=[1, 2, 3, 4], obs_km=[100, 200, 90000, 400],
+                      obs_known=[1, 2, 3, 4], obs_src=['return'] * 4)
+        m = M.RobustRate()
+        early = m.predict(v, 3, 5)
+        v.obs_km[-1] = 999999
+        self.assertEqual(early, m.predict(v, 3, 5))
+
+    def test_model_choice_does_not_need_test_outcomes(self):
+        fleet = M.build_fleet(synth_rows(n_vehicles=20))
+        result = M.backtest(fleet, evaluate_test=False)
+        self.assertEqual(result['nowcast'], {})
+        self.assertLess(result['validation_cutoff'], result['calibration_start'])
+        self.assertLess(result['calibration_start'], result['cutoff'])
+
+    def test_subset_sampling_does_not_select_only_test_vehicles(self):
+        fleet = {f'x{i}': M.Vehicle(f'x{i}') for i in range(1000)}
+        train, test = M.split_vehicles(fleet)
+        self.assertTrue(train)
+        self.assertTrue(test)
+        self.assertFalse(train & test)
 
 
 if __name__ == "__main__":

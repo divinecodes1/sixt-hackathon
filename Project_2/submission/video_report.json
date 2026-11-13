@@ -1,0 +1,26 @@
+{
+  "walkthrough": {
+    "file": "walkthrough.mp4",
+    "duration_seconds": 335.6817233560091,
+    "bytes": 7212765,
+    "resolution": [
+      1920,
+      1080
+    ],
+    "audio": "synthesized English narration",
+    "captions": "burned in + SRT",
+    "full_decode_check": "passed"
+  },
+  "demo": {
+    "file": "demo.mp4",
+    "duration_seconds": 58.49999999999999,
+    "bytes": 1122224,
+    "resolution": [
+      1920,
+      1080
+    ],
+    "audio": "synthesized English narration",
+    "captions": "burned in + SRT",
+    "full_decode_check": "passed"
+  }
+}

@@ -1,5 +1,12 @@
 # Project 2: Mileage Forecasting & Erroneous Mileage Detection
 
+> **Team implementation:** See [SUBMISSION.md](SUBMISSION.md) for measured fleet results and exact run commands.
+> Windows: follow the commands in SUBMISSION.md; Linux/macOS: `bash setup.sh`. The default run uses the public example.
+> Supplied Parquet input must be explicit: `python run_baseline.py data/data_30_percent_sample.parquet`.
+> `python predict_missing.py` writes local estimates for masked mileage in `test_data.parquet`.
+> `python demo.py` runs a safe demonstration on made-up vehicles. The original organizer brief follows below.
+> **Visual demo:** open [submission/demo.html](submission/demo.html) in a browser. Rebuild with `python submission/build_demo.py`.
+
 **Project owners:** Julian Hackinger, Ernest Quintana
 
 **Questions before the hackathon:** email the project owners directly: julian.hackinger@sixt.com, ernest.quintana@sixt.com. On the day, technical support is available on site and domain expertise remotely; the on-site team will coordinate.
