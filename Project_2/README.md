@@ -7,6 +7,7 @@
 > `python demo.py` runs a safe demonstration on made-up vehicles. The original organizer brief follows below.
 > **Visual demo:** open [submission/demo.html](submission/demo.html) in a browser. Rebuild with `python submission/build_demo.py`.
 > **Videos:** [Detailed narrated walkthrough](submission/walkthrough.mp4) · [Short submission video](submission/demo.mp4).
+> The complete walkthrough has a [timestamped chapter guide](submission/VIDEO_COVERAGE.md) covering the approach, evidence, demo, run commands and remaining work.
 
 **Project owners:** Julian Hackinger, Ernest Quintana
 

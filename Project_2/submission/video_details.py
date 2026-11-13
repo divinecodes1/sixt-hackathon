@@ -45,6 +45,17 @@ def expand(original, metrics, benchmark, inference):
                      'Bias: signed over- or under-prediction; skill compares with last reading'],
              narration="Mean absolute error, or M A E, is the average absolute distance between the estimate and recorded target. It is our primary selection metric. M A P E expresses error as a percentage of the odometer, using a minimum denominator of one kilometre, so small or erroneous readings can dominate it. W A P E compares error with the distance driven since the last known reading. Bias shows whether estimates systematically overshoot or undershoot. Skill measures improvement over the last reading baseline. Nowcasts use a rolling origin one day before a return source target; forecasts use the fixed cutoff.")
     )
+    after('metrics',
+        dict(id='metrics_values', title='The selected models: more than one metric', subtitle='All values come from the held-out evaluation report',
+             table=[['Task', 'MAE km', 'MAPE', 'Bias km']] +
+                [[task, f"{m[task]['models'][selected[task]]['all']['MAE_km']:,.0f}",
+                  f"{m[task]['models'][selected[task]]['all']['MAPE_odometer']:.2%}",
+                  f"{m[task]['models'][selected[task]]['all']['bias_km']:+,.0f}"]
+                 for task in ('nowcast', 'forecast')],
+             points=['Selected nowcast WAPE: 0.74 · selected forecast WAPE: 0.37',
+                     'Negative bias underestimates; positive bias overestimates'],
+             narration="The selected current mileage model has an odometer percentage error of seven point two eight percent, compared with nine point five four percent for the last reading baseline. Its signed bias is about minus one hundred and forty four kilometres. The selected forecast has percentage error of seventeen point three one percent, compared with thirty eight point zero one percent for the last reading baseline, and bias of about plus one hundred and fourteen kilometres. Distance based weighted error is also reported. These complementary metrics help reveal systematic behaviour that a single average can hide.")
+    )
     after('forecast',
         dict(id='ranges', title='How reliable are the prediction ranges?', subtitle='90% calibration target · measured coverage is not a guarantee',
              table=[['Task', 'Held-out coverage', 'Mean full width km'],
@@ -81,6 +92,12 @@ def expand(original, metrics, benchmark, inference):
              stats=[(f"{m['flags_per_1000_readings']:.2f}", 'flagged readings per 1,000'), (f"{b['flagged_untouched']:,}", 'untouched readings flagged'), (str(b['additional_untouched_flags']), 'additional untouched flags after injection')],
              points=['Untouched is not the same as confirmed correct', 'No real precision or false-positive rate is claimed'],
              narration="The full fleet scan flags eighty four point two two readings per thousand, so review workload matters. Across benchmark seeds, five thousand, nine hundred and sixty five untouched readings are flagged. They may contain existing errors, missing rental records, or stale data artifacts, so this is not a measured false positive rate. Comparing against the original flag set gives one hundred and twenty two additional untouched flags after injection. The local review file includes neighbouring readings and rental context. Human adjudication is still pending, and we do not claim real precision.")
+    )
+    after('workload',
+        dict(id='rule_counts', title='What the full-fleet detector flagged', subtitle='Signals by rule · one reading can produce multiple signals',
+             table=[['Rule', 'Signals']] +
+                   [[rule.replace('_', ' '), f"{count:,}"] for rule, count in m['flags'].items()],
+             narration="The aggregate report also breaks down the full fleet review workload by rule. Movement without a recorded rental and unchanged readings contribute many signals, and require care because operational records can be incomplete or stale. Isolated typos, implausible rates, decreases and residual disagreements contribute the remaining signals. A reading can trigger more than one rule, so the signal total is not a count of independently confirmed bad readings. The local context review helps analysts distinguish likely entry errors, unusual but plausible usage, and possible pipeline artifacts.")
     )
     after('inference',
         dict(id='exports', title='What is in the completed prediction output?', subtitle='Future dates require forecasts, not invented live rental information',
@@ -125,7 +142,10 @@ def expand(original, metrics, benchmark, inference):
              narration="The official rubric allocates fifteen points to understanding the problem, twenty five to approach, twenty five to results, fifteen to business relevance, and ten each to code and presentation. These are the jury's maximums, not a score we award ourselves. The repository contains the implementation, write up, aggregate evidence, five slide deck, short video and detailed walkthrough. Existing tracked organizer datasets still require publishing permission or exclusion, and repository rules require confirmation before a push. This complete walkthrough explains the work; the separate short cut respects the one minute video submission limit.")
     )
     expanded = []
-    for scene in original:
+    def visit(scene):
         expanded.append(scene)
-        expanded.extend(additions.get(scene['id'], []))
+        for added in additions.get(scene['id'], []):
+            visit(added)
+    for scene in original:
+        visit(scene)
     return expanded

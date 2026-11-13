@@ -175,6 +175,36 @@
       "narration": "Mean absolute error, or M A E, is the average absolute distance between the estimate and recorded target. It is our primary selection metric. M A P E expresses error as a percentage of the odometer, using a minimum denominator of one kilometre, so small or erroneous readings can dominate it. W A P E compares error with the distance driven since the last known reading. Bias shows whether estimates systematically overshoot or undershoot. Skill measures improvement over the last reading baseline. Nowcasts use a rolling origin one day before a return source target; forecasts use the fixed cutoff."
     },
     {
+      "id": "metrics_values",
+      "title": "The selected models: more than one metric",
+      "subtitle": "All values come from the held-out evaluation report",
+      "table": [
+        [
+          "Task",
+          "MAE km",
+          "MAPE",
+          "Bias km"
+        ],
+        [
+          "nowcast",
+          "415",
+          "7.28%",
+          "-144"
+        ],
+        [
+          "forecast",
+          "2,734",
+          "17.31%",
+          "+114"
+        ]
+      ],
+      "points": [
+        "Selected nowcast WAPE: 0.74 \u00b7 selected forecast WAPE: 0.37",
+        "Negative bias underestimates; positive bias overestimates"
+      ],
+      "narration": "The selected current mileage model has an odometer percentage error of seven point two eight percent, compared with nine point five four percent for the last reading baseline. Its signed bias is about minus one hundred and forty four kilometres. The selected forecast has percentage error of seventeen point three one percent, compared with thirty eight point zero one percent for the last reading baseline, and bias of about plus one hundred and fourteen kilometres. Distance based weighted error is also reported. These complementary metrics help reveal systematic behaviour that a single average can hide."
+    },
+    {
       "id": "dashboard",
       "title": "Live walkthrough: estimate the current mileage",
       "subtitle": "All dashboard vehicles and readings are synthetic",
@@ -374,6 +404,42 @@
         "No real precision or false-positive rate is claimed"
       ],
       "narration": "The full fleet scan flags eighty four point two two readings per thousand, so review workload matters. Across benchmark seeds, five thousand, nine hundred and sixty five untouched readings are flagged. They may contain existing errors, missing rental records, or stale data artifacts, so this is not a measured false positive rate. Comparing against the original flag set gives one hundred and twenty two additional untouched flags after injection. The local review file includes neighbouring readings and rental context. Human adjudication is still pending, and we do not claim real precision."
+    },
+    {
+      "id": "rule_counts",
+      "title": "What the full-fleet detector flagged",
+      "subtitle": "Signals by rule \u00b7 one reading can produce multiple signals",
+      "table": [
+        [
+          "Rule",
+          "Signals"
+        ],
+        [
+          "isolated outlier",
+          "38,752"
+        ],
+        [
+          "implausible rate",
+          "12,814"
+        ],
+        [
+          "moved without rental",
+          "75,992"
+        ],
+        [
+          "no movement on rent",
+          "31,839"
+        ],
+        [
+          "decrease",
+          "4,149"
+        ],
+        [
+          "residual outlier",
+          "7,990"
+        ]
+      ],
+      "narration": "The aggregate report also breaks down the full fleet review workload by rule. Movement without a recorded rental and unchanged readings contribute many signals, and require care because operational records can be incomplete or stale. Isolated typos, implausible rates, decreases and residual disagreements contribute the remaining signals. A reading can trigger more than one rule, so the signal total is not a count of independently confirmed bad readings. The local context review helps analysts distinguish likely entry errors, unusual but plausible usage, and possible pipeline artifacts."
     },
     {
       "id": "inference",

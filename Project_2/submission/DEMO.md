@@ -4,6 +4,8 @@
 
 - **walkthrough.mp4**: detailed explanation of the problem, data, timing insight,
   evaluation, dashboard, forecasts, flags, results, prediction output and limits.
+  The expanded version has 31 chapters. Use **VIDEO_COVERAGE.md** for timestamps
+  and a point-by-point coverage guide.
 - **demo.mp4**: the short submission cut, verified below the one-minute limit.
 - **walkthrough.srt / demo.srt**: sidecar captions; captions are also burned into both videos.
 - **walkthrough_narration.md / demo_narration.md**: full scripts for rehearsal or recording your own voice.
@@ -11,6 +13,11 @@
 Narration uses an explicitly disclosed synthesized English voice. Dashboard
 scenes show made-up vehicles; performance charts use measured aggregate results.
 Video durations, file sizes and decode checks are in video_report.json.
+The complete walkthrough additionally explains the data fields and cleaning,
+all six model comparisons, exact split dates, MAE/MAPE/WAPE/bias, interval coverage,
+long-term and long-gap results, detection thresholds and per-rule workload,
+error injection by type, exported files, reproduction commands, business use,
+remaining validation and the official judging rubric.
 
 To rebuild on Windows with Chrome and installed Windows speech voices:
 
