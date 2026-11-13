@@ -1,8 +1,8 @@
 {
   "walkthrough": {
     "file": "walkthrough.mp4",
-    "duration_seconds": 335.6817233560091,
-    "bytes": 7212765,
+    "duration_seconds": 335.79,
+    "bytes": 7464495,
     "resolution": [
       1920,
       1080
@@ -13,8 +13,8 @@
   },
   "demo": {
     "file": "demo.mp4",
-    "duration_seconds": 58.49999999999999,
-    "bytes": 1122224,
+    "duration_seconds": 58.78,
+    "bytes": 1155717,
     "resolution": [
       1920,
       1080

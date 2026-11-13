@@ -3,225 +3,177 @@
 This is team Divinecodes, presenting Project Two: mileage forecasting and erroneous mileage detection. We built
 
 2
-00:00:10,588 --> 00:00:18,841
-a local pipeline and an interactive demonstration to estimate a rental car's current mileage, forecast
+00:00:10,588 --> 00:00:18,941
+a local pipeline and an interactive demonstration to estimate a rental car's current mileage, forecast future mileage, and identify reports that deserve a closer look
 
 3
-00:00:18,841 --> 00:00:18,941
-future mileage, and identify reports that deserve a closer look
-
-4
 00:00:18,938 --> 00:00:26,475
 During a long rental, the latest recorded odometer may be weeks out of date. SIXT
 
-5
+4
 00:00:26,475 --> 00:00:31,208
 still needs to value the car and decide when to remove it from the rental
 
+5
+00:00:31,208 --> 00:00:43,034
+fleet. A nowcast estimates mileage today. A forecast estimates mileage on a future date. Suspicious reading detection helps analysts find possible entry mistakes or unusual usage
+
 6
-00:00:31,208 --> 00:00:42,934
-fleet. A nowcast estimates mileage today. A forecast estimates mileage on a future date. Suspicious
-
-7
-00:00:42,934 --> 00:00:43,034
-reading detection helps analysts find possible entry mistakes or unusual usage
-
-8
 00:00:42,223 --> 00:00:50,222
 The development sample contains nearly two point seven million status rows across twenty seven thousand
 
-9
+7
 00:00:50,222 --> 00:00:59,860
 six hundred and thirty vehicles. We added Parquet support and streaming fleet loading. The separate
 
-10
+8
 00:00:59,860 --> 00:01:08,906
 inference file has one hundred and sixty three thousand, forty seven missing mileage targets. We
 
-11
-00:01:08,906 --> 00:01:15,630
-keep those targets separate from model tuning and do not use the empty organizer prediction
+9
+00:01:08,906 --> 00:01:15,730
+keep those targets separate from model tuning and do not use the empty organizer prediction or error columns as features
 
-12
-00:01:15,630 --> 00:01:15,730
-or error columns as features
-
-13
+10
 00:01:09,308 --> 00:01:14,350
 Our main insight is that the date a mileage value belongs to can differ from
 
-14
+11
 00:01:14,350 --> 00:01:23,038
 the date the system first knows it. Some On Rent rows contain older handover mileage
 
-15
+12
 00:01:23,038 --> 00:01:30,789
 We retime those values, but never reveal them before their row was recorded. We apply
 
-16
-00:01:30,789 --> 00:01:39,531
-the same availability boundary to rental metadata and changing vehicle categories. The fleet pattern is
+13
+00:01:30,789 --> 00:01:39,631
+the same availability boundary to rental metadata and changing vehicle categories. The fleet pattern is not universal, so we document the assumption rather than treating every row as certain truth
 
-17
-00:01:39,531 --> 00:01:39,631
-not universal, so we document the assumption rather than treating every row as certain truth
-
-18
+14
 00:01:37,657 --> 00:01:45,952
 We compared the last recorded reading, an average daily rate, rental aware models, a recent
 
-19
+15
 00:01:45,952 --> 00:01:55,603
 usage variant, a blend, and a robust rate candidate. Earlier validation chooses the model separately
 
-20
+16
 00:01:55,603 --> 00:02:05,930
 for each task. A different later period calibrates the prediction ranges. Final evaluation uses later
 
-21
-00:02:05,930 --> 00:02:14,597
-readings on held out vehicles. Future field mutation tests check that changing future rows cannot
+17
+00:02:05,930 --> 00:02:14,697
+readings on held out vehicles. Future field mutation tests check that changing future rows cannot change earlier predictions
 
-22
-00:02:14,597 --> 00:02:14,697
-change earlier predictions
-
-23
+18
 00:02:07,226 --> 00:02:15,782
 Here is the working dashboard. Every vehicle in this demonstration is made up. Select a
 
-24
+19
 00:02:15,782 --> 00:02:22,561
 car on the left. The first card shows its last recorded mileage and the age
 
-25
+20
 00:02:22,561 --> 00:02:31,049
 of that reading. The orange card shows the model's current estimate and a prediction range
 
-26
-00:02:31,049 --> 00:02:37,663
-The timeline connects the known history to the estimate, making the gap visible instead of
+21
+00:02:31,049 --> 00:02:37,763
+The timeline connects the known history to the estimate, making the gap visible instead of hiding the uncertainty
 
-27
-00:02:37,663 --> 00:02:37,763
-hiding the uncertainty
-
-28
+22
 00:02:31,751 --> 00:02:40,328
 Next, change the forecast horizon from thirty days to ninety days. The future estimate and
 
-29
+23
 00:02:40,328 --> 00:02:49,311
 its range update using outputs precomputed by the Python models. Longer horizons can require much
 
-30
-00:02:49,311 --> 00:02:58,798
-wider ranges. The page also supports searching, filtering, and exporting the selected estimate as a
+24
+00:02:49,311 --> 00:02:58,898
+wider ranges. The page also supports searching, filtering, and exporting the selected estimate as a CSV. The demo works offline and needs no API key
 
-31
-00:02:58,798 --> 00:02:58,898
-CSV. The demo works offline and needs no API key
-
-32
+25
 00:02:56,906 --> 00:03:05,449
 The review queue includes an intentionally invented mileage spike. Each signal shows the report date
 
-33
+26
 00:03:05,449 --> 00:03:15,604
 the reading, and a reason for investigation. Our rules cover isolated spikes or dips, decreases
 
-34
+27
 00:03:15,604 --> 00:03:27,681
 implausible rates, movement without recorded rentals, unchanged readings during rental days, and model residual outliers
 
-35
-00:03:27,681 --> 00:03:34,246
-A flag is a request for review. It is not proof of fraud, and real
+28
+00:03:27,681 --> 00:03:34,346
+A flag is a request for review. It is not proof of fraud, and real precision still requires domain expert labels
 
-36
-00:03:34,246 --> 00:03:34,346
-precision still requires domain expert labels
-
-37
+29
 00:03:27,890 --> 00:03:35,199
 On held out development readings, current mileage error falls from five hundred and sixty one
 
-38
+30
 00:03:35,199 --> 00:03:43,556
 kilometres for the last reading baseline to four hundred and fifteen. Forecast error falls from
 
-39
+31
 00:03:43,556 --> 00:03:51,837
 seven thousand, three hundred and seventy six kilometres to two thousand, seven hundred and thirty
 
-40
+32
 00:03:51,837 --> 00:04:00,676
 four. Those are reductions of twenty six percent and sixty two point nine percent. The
 
-41
-00:04:00,676 --> 00:04:10,507
-selected models also beat the stronger average rate baseline. These are fleet evaluation results, separate
+33
+00:04:00,676 --> 00:04:10,607
+selected models also beat the stronger average rate baseline. These are fleet evaluation results, separate from the synthetic dashboard
 
-42
-00:04:10,507 --> 00:04:10,607
-from the synthetic dashboard
-
-43
+34
 00:04:01,473 --> 00:04:08,342
 In a controlled development benchmark, the detector caught four hundred and fifty one of four
 
-44
+35
 00:04:08,342 --> 00:04:18,400
 hundred and seventy nine injected mistakes: ninety four point two percent episode recall. Exact corrupted
 
-45
+36
 00:04:18,400 --> 00:04:26,667
 reading recall was ninety three point nine percent. Episode recall can also credit the reading
 
-46
-00:04:26,667 --> 00:04:36,677
-immediately before a rollback. This does not establish real world precision. Untouched readings may already
+37
+00:04:26,667 --> 00:04:36,777
+immediately before a rollback. This does not establish real world precision. Untouched readings may already contain errors, and some flags may reflect missing or stale operational data
 
-47
-00:04:36,677 --> 00:04:36,777
-contain errors, and some flags may reflect missing or stale operational data
-
-48
+38
 00:04:32,821 --> 00:04:39,945
 We filled all one hundred and sixty three thousand, forty seven missing mileage targets and
 
-49
+39
 00:04:39,945 --> 00:04:48,811
 preserved the original table. Most use the vehicle's own earlier history with a range. Three
 
-50
+40
 00:04:48,811 --> 00:04:56,093
 thousand, seven hundred and forty five have no usable own history, so they receive an
 
-51
-00:04:56,093 --> 00:05:06,207
-explicitly flagged fleet cohort fallback. Those fallbacks have no calibrated range and need review. The
+41
+00:04:56,093 --> 00:05:06,307
+explicitly flagged fleet cohort fallback. Those fallbacks have no calibrated range and need review. The error column stays unchanged because the masked ground truth is unavailable
 
-52
-00:05:06,207 --> 00:05:06,307
-error column stays unchanged because the masked ground truth is unavailable
-
-53
+42
 00:05:02,425 --> 00:05:13,875
 The project includes reproducible commands, measured aggregate evidence, thirty one passing tests, an offline dashboard
 
-54
+43
 00:05:13,875 --> 00:05:22,184
 and a five slide presentation. A clean source copy runs the public example without organizer
 
-55
+44
 00:05:22,184 --> 00:05:32,945
 data. The next step is a shadow mode pilot: confirm measurement semantics, label representative flags
 
-56
-00:05:32,945 --> 00:05:41,392
-and validate long term rentals and range coverage. We demonstrate a working decision aid, not
-
-57
-00:05:41,392 --> 00:05:41,492
-proven fraud detection, guaranteed savings, or production readiness
+45
+00:05:32,945 --> 00:05:41,492
+and validate long term rentals and range coverage. We demonstrate a working decision aid, not proven fraud detection, guaranteed savings, or production readiness

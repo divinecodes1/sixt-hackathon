@@ -105,6 +105,8 @@ def plan():
         dict(detailed[10], narration="We filled every missing mileage target. Vehicles without history receive clearly flagged cohort fallbacks, not false certainty."),
         dict(detailed[11], narration="Thirty one tests pass. Next: expert flag review and a shadow mode pilot. Full details are in our submission.")
     ]
+    from video_details import expand
+    detailed = expand(detailed, m, b, inf)
     return {'walkthrough': detailed, 'demo': short}
 
 
@@ -158,13 +160,16 @@ def screenshots():
               '--disable-background-networking', '--window-size=1600,1000', '--virtual-time-budget=1000',
               '--user-data-dir=' + str(WORK / 'chrome')]
     actions = {
-        'overview': "document.querySelector('.detail').scrollIntoView({block:'start'});window.scrollTo(0,180);",
-        'forecast': "$('horizon').value='90';$('horizon').dispatchEvent(new Event('change'));window.scrollTo(0,180);",
-        'review': "$('review').scrollIntoView({block:'center'});"
+        'overview': '',
+        'forecast': "$('horizon').value='90';$('horizon').dispatchEvent(new Event('change'));",
+        'review': "document.querySelector('.layout').style.display='none';"
     }
     for name, action in actions.items():
         page = WORK / (name + '.html')
-        page.write_text(source.replace('</body>', '<script>' + action + '</script></body>'), encoding='utf-8')
+        # A capture-only presentation layout avoids browser scroll-compositor
+        # artifacts and keeps the genuine dashboard elements readable.
+        css = '<style>header,.intro,.notice,.tour,.footer,#how{display:none!important}.wrap{padding:18px;max-width:none}.review{margin-top:14px}td,th{font-size:20px;padding:18px}#review h2{font-size:26px}.value{font-size:40px}.cardnote{font-size:16px}</style>'
+        page.write_text(source.replace('</head>', css + '</head>').replace('</body>', '<script>' + action + '</script></body>'), encoding='utf-8')
         result = subprocess.run(common + ['--screenshot=' + str(WORK / (name + '.png')), page.as_uri()],
                                 capture_output=True, timeout=60, creationflags=subprocess.CREATE_NO_WINDOW)
         if result.returncode:
@@ -180,8 +185,27 @@ def scene_frame(scene, number, count):
     wrapped(d, scene['title'], (80, 105), 1760, 58, bold=True)
     d.text((82, 185), scene['subtitle'], font=font(27), fill=MUTED)
     points = scene.get('points', [])
-    if scene.get('shot'):
+    if scene.get('commands'):
+        d.rounded_rectangle((80, 270, 1840, 830), radius=18, fill='#11232d')
+        for j, command in enumerate(scene['commands']):
+            d.text((115, 305+j*76), '> ' + command, font=font(30), fill='white')
+        d.text((85, 880), 'Use your activated virtual environment. Organizer data remains local.', font=font(27), fill=MUTED)
+    elif scene.get('table'):
+        table = scene['table']
+        col_width = 1760/len(table[0])
+        row_height = min(100, 580/len(table))
+        for row_index, row in enumerate(table):
+            yy = 280+row_index*row_height
+            d.rectangle((80, yy, 1840, yy+row_height-2), fill='#e7edef' if row_index==0 else 'white')
+            for col_index, value in enumerate(row):
+                wrapped(d, str(value), (100+col_index*col_width, yy+18), col_width-40,
+                        29 if row_index else 27, fill=INK, bold=row_index==0, spacing=5)
+        for j, point in enumerate(points):
+            d.text((85, 280+len(table)*row_height+25+j*44), point, font=font(27), fill=MUTED)
+    elif scene.get('shot'):
         shot = Image.open(WORK / (scene['shot'] + '.png')).convert('RGB')
+        if scene['shot'] == 'review':
+            shot = shot.crop((0, 0, 1600, 580))
         # Focus on the actual dashboard controls and cards while keeping its
         # synthetic-data context explicit in the surrounding video.
         shot.thumbnail((1220, 675), Image.Resampling.LANCZOS)
@@ -260,6 +284,15 @@ def encode(name, scenes):
             a, z = group[0]['offset'], group[-1]['offset'] + group[-1]['length']
             caption = scene['narration'][a:z]
             cues.append((start, max(end, start+.1), caption))
+        # Do not flash a final fragment too briefly to read.
+        readable = []
+        for start, end, caption in cues:
+            if end-start < 1.4 and readable:
+                previous = readable.pop()
+                readable.append((previous[0], end, previous[2] + ' ' + caption))
+            else:
+                readable.append((start, end, caption))
+        cues = readable
         # Burn captions into the video using transparent PNGs, avoiding any
         # font/filter dependency in the encoder.
         caption_list = []

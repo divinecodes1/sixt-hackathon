@@ -6,6 +6,7 @@
 > `python predict_missing.py` writes local estimates for masked mileage in `test_data.parquet`.
 > `python demo.py` runs a safe demonstration on made-up vehicles. The original organizer brief follows below.
 > **Visual demo:** open [submission/demo.html](submission/demo.html) in a browser. Rebuild with `python submission/build_demo.py`.
+> **Videos:** [Detailed narrated walkthrough](submission/walkthrough.mp4) · [Short submission video](submission/demo.mp4).
 
 **Project owners:** Julian Hackinger, Ernest Quintana
 

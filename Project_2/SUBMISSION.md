@@ -138,6 +138,9 @@ Rebuild the PDF with `python submission/render_slides.py` (installed Chrome, Chr
 The safe live walkthrough is `python demo.py`, which creates made-up vehicles and exports nowcasts, future mileage and a review queue.
 For the interactive visual walkthrough, open `submission/demo.html` in a browser.
 Rebuild it with `python submission/build_demo.py`; all data and charts are embedded for offline use.
+Narrated videos: `submission/demo.mp4` is the one-minute submission cut;
+`submission/walkthrough.mp4` is the detailed explanation. Both include captions and synthesized English narration.
+Measured video duration, size and decode checks are in `submission/video_report.json`.
 No real vehicle examples are needed in the public pitch.
 
 ## Business relevance and next steps
