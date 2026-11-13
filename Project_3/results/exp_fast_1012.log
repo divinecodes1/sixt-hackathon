@@ -6,3 +6,4 @@
   H_hedge     certainty from the original words; quantities to scope; gloss last
   V_deanchor  call 2 sees where to look, not the first reviewer's conclusion
 | 11-13 10:26 | base | dev (dev_pairs_fast.jsonl) | 0.716 | 0.733 | 0.700 | 0.599 | n/a | 0.66 | current final_judge.py |
+| 11-13 10:48 | S_second_look | dev (dev_pairs_fast.jsonl) | 0.724 | 0.767 | 0.687 | 0.617 | n/a | 0.66 | call 2 re-checks passes whose own fields show a policy difference |
