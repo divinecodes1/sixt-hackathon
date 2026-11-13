@@ -201,9 +201,9 @@ class Settings(Pipeline):
                                       "NUMBER_RULE_MAX": "verdict", "SECOND_LOOK": False, "ADJUDICATE": False,
                                       "CONDITION_EVIDENCE": False, "CLAUSE_IDS": False, "HEDGE_FROM_QUOTE": False,
                                       "VERIFY_DEANCHOR": False, "VERIFY_EXAMPLES": False,
-                                      "VERIFY_WITNESS": False, "VERIFY_SCOPED": False})
+                                      "VERIFY_WITNESS": True, "VERIFY_SCOPED": False})  # W shipped 12:25 (dev 0.850 x3)
         self.assertEqual(fj._check_instructions(), fj.CHECK_INSTRUCTIONS)
-        self.assertEqual(fj._verify_instructions(), fj.VERIFY_INSTRUCTIONS)
+        self.assertEqual(fj._verify_instructions(), fj.VERIFY_WITNESS_INSTRUCTIONS)
         self.assertEqual(self.calls_for("You can extend dropcond at the counter."), ("pass", ["check"]))
         MockLLM.bodies.clear()
         self.calls_for("You can usually extend your rental.")
@@ -220,6 +220,7 @@ class Settings(Pipeline):
         self.assertIn("<examples>", MockLLM.bodies[1]["messages"][1]["content"])
 
     def test_verify_witness_switch(self):
+        fj.VERIFY_WITNESS = False
         self.assertEqual(self.calls_for("You can always extend fakequote at the counter."), ("fail", ["check", "verify"]))
         self.assertNotIn("reply_words", MockLLM.bodies[1]["messages"][1]["content"])  # default prompt unchanged
         fj.VERIFY_WITNESS = True
@@ -230,7 +231,30 @@ class Settings(Pipeline):
         self.assertEqual(self.calls_for("You can always extend fakequote at the counter."),
                          ("pass", ["check", "verify", "holistic"]))
 
+    def test_scoped_applies_to_witness_prompt(self):
+        """VERIFY_SCOPED must not be a silent no-op now that the witness prompt is the default."""
+        fj.VERIFY_WITNESS, fj.VERIFY_SCOPED = True, True
+        self.calls_for("You can always extend at the counter.")
+        content = MockLLM.bodies[1]["messages"][1]["content"]
+        self.assertIn(fj.VERIFY_SCOPED_NOTE, content)
+        self.assertIn("reply_words", content)
+
+    def test_trace_logs_unwitnessed_confirms(self):
+        import tempfile
+        path = os.path.join(tempfile.mkdtemp(), "trace.jsonl")
+        old = {k: os.environ.get(k) for k in ("JUDGE_TRACE", "JUDGE_TRACE_REASONS")}
+        try:
+            os.environ.update(JUDGE_TRACE=path, JUDGE_TRACE_REASONS="1")
+            fj.VERIFY_WITNESS = True
+            self.calls_for("You can always extend fakequote at the counter.")
+            row = json.loads(open(path, encoding="utf-8").readline())
+            self.assertEqual([d["decision"] for d in row["verify"]], ["rejected_unwitnessed"])
+        finally:
+            for k, v in old.items():
+                os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+
     def test_verify_scoped_switch(self):
+        fj.VERIFY_WITNESS = False  # the scoped note applies to the plain verify prompt
         self.assertEqual(self.calls_for("You can always extend at the counter."), ("fail", ["check", "verify"]))
         self.assertNotIn(fj.VERIFY_SCOPED_NOTE, MockLLM.bodies[1]["messages"][1]["content"])  # default unchanged
         fj.VERIFY_SCOPED = True

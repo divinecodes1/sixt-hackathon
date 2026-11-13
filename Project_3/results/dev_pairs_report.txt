@@ -1,25 +1,25 @@
 cases: 226
-COMBINED (the score)       0.731   (baseline 0.697, delta +0.034)
-macro catch                0.723   (baseline 0.592, delta +0.131)
-macro keep                 0.739   (baseline 0.847, delta -0.108)
-kappa vs construction      0.601   (baseline 0.531, delta +0.070)
-consistency (2 runs)       same verdict 1.000, kappa 1.000  (n=235 replies)
-micro: catch 0.718  keep 0.707  raw catch 0.918  raw stability 0.828  original pass 0.792
+COMBINED (the score)       0.850   (baseline 0.697, delta +0.154)
+macro catch                0.813   (baseline 0.592, delta +0.221)
+macro keep                 0.891   (baseline 0.847, delta +0.044)
+kappa vs construction      0.772   (baseline 0.531, delta +0.242)
+consistency (2 runs)       same verdict 0.991, kappa 0.983  (n=235 replies)
+micro: catch 0.809  keep 0.871  raw catch 0.900  raw stability 0.905  original pass 0.920
 
 per edit type              n   catch   keep  raw_stab
-  condition_removal         30  0.667    n/a    n/a
-  filler_padding            15    n/a  0.533  0.733
-  hedge_removal             20  0.700    n/a    n/a
+  condition_removal         30  0.800    n/a    n/a
+  filler_padding            15    n/a  0.867  0.867
+  hedge_removal             20  0.800    n/a    n/a
   padding_removal            5    n/a  1.000  1.000
-  polite_opener             30    n/a  0.833  0.967
-  sentence_reorder          30    n/a  0.633  0.733
-  translation               36    n/a  0.694  0.806
-  wrong_number              35  0.686    n/a    n/a
-  wrong_policy_detail       25  0.840    n/a    n/a
+  polite_opener             30    n/a  0.900  0.967
+  sentence_reorder          30    n/a  0.800  0.867
+  translation               36    n/a  0.889  0.889
+  wrong_number              35  0.771    n/a    n/a
+  wrong_policy_detail       25  0.880    n/a    n/a
 
 per lang            catch   keep  combined
-  de                   0.682  0.680  0.681
-  en                   0.773  0.750  0.761
-  es                   0.818  0.840  0.829
-  fr                   0.591  0.640  0.614
-  it                   0.727  0.640  0.681
+  de                   0.727  0.840  0.780
+  en                   1.000  0.938  0.968
+  es                   0.727  0.880  0.796
+  fr                   0.818  0.880  0.848
+  it                   0.773  0.840  0.805

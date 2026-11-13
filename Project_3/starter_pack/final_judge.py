@@ -11,6 +11,7 @@ Recipe (same code for every criterion; only --criterion, --policy and --dev chan
              in both directions: numbers, the conditions/limits the policy attaches (kept or dropped?), certainty
              level, scope. Then: does the claim violate the criterion? Code aggregates the per-claim booleans.
      call 2  Only if call 1 found a candidate violation: a fresh-context verifier confirms or rejects each finding.
+             (VERIFY_WITNESS, on since 12:25: a confirm counts only with the reply's exact words + a concrete case.)
              (SECOND_LOOK, off by default: also when call 1 passed but its own fields record a policy difference.)
      call 3  Only if calls 1 and 2 disagree: a holistic judgment with examples breaks the tie (ADJUDICATE, off by
              default: it sees both reviewers' arguments).
@@ -55,7 +56,7 @@ HEDGE_FROM_QUOTE = False     # certainty rated from the original words (hedge wo
 VERIFY_DEANCHOR = False      # call 2 gets only where to look (quote, policy text), not the first reviewer's conclusion
 VERIFY_EXAMPLES = False      # call 2 also sees the labelled examples (calibration against false confirms on good replies)
 VERIFY_SCOPED = False        # call 2: a limitation stated anywhere counts; a condition matters only for the promise it limits
-VERIFY_WITNESS = False       # call 2 confirms only with the reply's exact words + a concrete case; code checks the quote
+VERIFY_WITNESS = True        # call 2 confirms only with the reply's exact words + a concrete case; code checks the quote
 
 # ----------------------------------------------------------------------------------------------- state set in prepare()
 # Read-only after prepare(); judge() never writes to these.
@@ -665,10 +666,11 @@ that govern a different step or a different promise; those count only where the 
 
 
 def _verify_instructions() -> str:
-    """VERIFY_INSTRUCTIONS with the enabled switches applied (all off: the text is unchanged)."""
+    """Call-2 instructions: the witness or plain prompt, plus the scoped note if VERIFY_SCOPED (off: unchanged)."""
+    base = VERIFY_WITNESS_INSTRUCTIONS if VERIFY_WITNESS else VERIFY_INSTRUCTIONS
     if not VERIFY_SCOPED:
-        return VERIFY_INSTRUCTIONS
-    return _sub(VERIFY_INSTRUCTIONS, "\n\nAnswer format:", "\n" + VERIFY_SCOPED_NOTE + "\n\nAnswer format:")
+        return base
+    return _sub(base, "\n\nAnswer format:", "\n" + VERIFY_SCOPED_NOTE + "\n\nAnswer format:")
 
 
 def _confirmed(d) -> bool:
@@ -724,19 +726,18 @@ def judge(question: str, reply: str, lang: str, criterion: str, policy: str) -> 
         system2, listed2, instr2 = SYSTEM_VERIFY_NEUTRAL, _listed_neutral(findings), VERIFY_NEUTRAL_INSTRUCTIONS
     else:
         system2, listed2, instr2 = SYSTEM_VERIFY, _listed(findings), _verify_instructions()
-        if VERIFY_WITNESS:
-            instr2 = VERIFY_WITNESS_INSTRUCTIONS
     user2 = _context(question, reply, lang, with_examples=VERIFY_EXAMPLES) + f"\n\n<findings>\n{listed2}\n</findings>"
     verify = _parse_json(_ask(t, system2, user2 + "\n\n" + instr2, prefill=prefill))
     decisions = [d for d in (verify or {}).get("findings") or [] if isinstance(d, dict)]
-    if os.environ.get("JUDGE_TRACE_REASONS", "") not in ("", "0"):  # diagnostics only; contains reply quotes
-        t["findings"] = [{"source": f["source"], "quote": f["quote"][:200], "reason": f["reason"][:300]} for f in findings]
-        t["verify"] = [{"decision": str(d.get("decision", "")), "reason": str(d.get("reason", ""))[:300]}
-                       for d in decisions]
     call1 = [f for f in findings if f["source"] == "call1"]
     if VERIFY_WITNESS and not VERIFY_DEANCHOR:  # unproven confirms count as rejections: call 3 decides
         decisions = [d if _witnessed(d, reply) or not _confirmed(d) else dict(d, decision="rejected_unwitnessed")
                      for d in decisions]
+    if os.environ.get("JUDGE_TRACE_REASONS", "") not in ("", "0"):  # diagnostics only; contains reply quotes
+        # logged after the witness check, so a confirm the code discarded shows as "rejected_unwitnessed"
+        t["findings"] = [{"source": f["source"], "quote": f["quote"][:200], "reason": f["reason"][:300]} for f in findings]
+        t["verify"] = [{"decision": str(d.get("decision", "")), "reason": str(d.get("reason", ""))[:300]}
+                       for d in decisions]
     if any(_confirmed(d) for d in decisions):
         return _trace(t, "call1_fail>verify_confirms" if call1 else "code_flags>verify_confirms", "fail")
 

@@ -56,6 +56,9 @@ The LLM keeps everything else: conditions, hedges, scope, policy details, and th
 4. **Verify only suspected fails (call 2, fresh context).** It confirms or rejects each finding, which targets the
    false fails on good replies. It states the general principle that "leaving out a condition the reference
    attaches makes the statement stronger, not briefer", so it does not explain real omissions away.
+   **Shipped 12:25: `VERIFY_WITNESS = True`.** Call 2 confirms only if it copies the reply's exact words that violate
+   the criterion and names one concrete case where a reader is misled; code checks the words are in the reply, and an
+   unproven confirm goes to call 3.
 5. **Tie-break (call 3)** only when calls 1 and 2 disagree: an independent holistic judgment with examples. With
    `ADJUDICATE = True` (off until measured), call 3 sees both reviewers' arguments and checks each one against the
    reply, instead of judging from scratch.
@@ -84,9 +87,19 @@ come from the source replies being scored. Run twice for consistency: `bash run_
 | Ours, claude-haiku-4.5, 3-fold CV, run A | 0.754 | 0.750 | 0.758 | 0.623 | 0.974 |
 | Ours, same code, run B | 0.721 | 0.700 | 0.744 | 0.575 | 0.974 |
 | Ours, same code, run C (12:11) | 0.731 | 0.723 | 0.739 | 0.601 | 1.000 |
+| Ours + `VERIFY_WITNESS` (12:21, experiments.py) | 0.850 | 0.813 | 0.891 | 0.767 | 1.000 |
+| **Ours, shipped default (`run_dev.sh`, 12:33)** | **0.850** | **0.813** | **0.891** | **0.772** | **0.991** |
+
+The `VERIFY_WITNESS` prompt was written after reading run C's false fails on this same dev set, so its dev gain is
+an upper bound: cross-validation keeps the examples apart, not the prompt design. 9 source replies per type: one
+case moves a type by 3-7 points. Reports: `../results/exp_W_witness_dev_dev_pairs_report.txt` (variant) and
+`../results/dev_pairs_report.txt` (shipped default, 12:33: 1.88 calls per reply, 1 parse failure per run, model
+`claude-haiku-4.5`). Shipped, per edit type: catch condition_removal 0.800, hedge_removal 0.800, wrong_number 0.771,
+wrong_policy_detail 0.880; keep sentence_reorder 0.800, filler_padding 0.867, translation 0.889, polite_opener 0.900,
+padding_removal 1.000; correct originals pass 0.920 (baseline 0.858).
 
 Per language and per edit type: `../results/exp_base_dev_dev_pairs_report.txt` (run A), `../results/experiments.md`
-(run B, summary row only) and `../results/dev_pairs_report.txt` (run C). Condition_removal catch rises from 0.067 to 0.633–0.667, hedge_removal from
+(run B, summary row only) and `../results/dev_eval_1200.log` (run C). Condition_removal catch rises from 0.067 to 0.633–0.667, hedge_removal from
 0.500 to 0.600–0.700. Correct originals pass only 0.765–0.805 (baseline 0.858), so every harmless type loses keep.
 The trace (`JUDGE_TRACE`) shows the path: nearly all false fails on pass-labelled replies are call-1 alarms that call 2
 confirmed. The two runs of identical code differ by 0.033 combined: a setting has to win in both repeats.

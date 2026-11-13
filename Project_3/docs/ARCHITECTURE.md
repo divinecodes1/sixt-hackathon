@@ -1,8 +1,8 @@
 # LLM architecture design: `final_judge.py`
 
 Team Divinecodes, SIXT Hackathon 2026, Project 3 "Judge the Judge". Status: implemented, unit-tested with a mock
-model (71 tests), measured on `claude-haiku-4.5` on dev (13 Nov: combined 0.754, 0.721 and 0.731 in three runs of the same code,
-consistency 0.974–1.000; `starter_pack/RECIPE.md` Step 4). This document
+model (77 tests), measured on `claude-haiku-4.5` on dev (13 Nov: 0.754, 0.721 and 0.731 before the witness check;
+**0.850 shipped with `VERIFY_WITNESS`**, consistency 0.991; `starter_pack/RECIPE.md` Step 4). This document
 describes the code as it is; where it states a number, the number comes from `score.py` or a test run in this repo.
 
 ## 1. Objective and constraints
@@ -71,8 +71,8 @@ flowchart TD
     SL -->|no| P1[PASS · 1 call]
     SL -->|yes| C2b[Call 2: second look] -->|rejected| P2[PASS · 2 calls]
     C2b -->|confirmed| H1[Call 3: tie-break] --> V1[verdict · 3 calls]
-    C1 -->|some claim violates| C2[Call 2: verify findings,<br/>fresh context, no examples<br/>unless VERIFY_EXAMPLES]
-    C2 -->|any confirmed| F2[FAIL · 2 calls]
+    C1 -->|some claim violates| C2[Call 2: verify findings,<br/>fresh context, must quote the reply<br/>and name a concrete case]
+    C2 -->|any confirmed with words found in the reply| F2[FAIL · 2 calls]
     C2 -->|all rejected / unreadable| H2[Call 3: tie-break] --> V2[verdict · 3 calls]
 ```
 
@@ -157,7 +157,7 @@ instructions, and tags inside a reply are not escaped. Hackathon replies are not
 production hardening item, not a score item; changing it changes prompts, so it would go behind a switch and be
 measured.
 
-## 10. Configuration (all defaults = original behaviour)
+## 10. Configuration (defaults = shipped behaviour)
 
 | Constant | Default | Effect when changed | Variant |
 |---|---|---|---|
@@ -172,6 +172,8 @@ measured.
 | `HEDGE_FROM_QUOTE` | `False` | certainty rated from copied hedge words; quantities go to scope | `H_hedge` |
 | `VERIFY_DEANCHOR` | `False` | call 2 sees where to look, not call 1's conclusion | `V_deanchor` |
 | `VERIFY_EXAMPLES` | `False` | call 2 also sees the labelled examples | `X_verify_examples` |
+| `VERIFY_SCOPED` | `False` | call 2: limitation stated anywhere counts; condition matters only for the promise it limits | `Q_scoped_verify` |
+| **`VERIFY_WITNESS`** | **`True` (shipped 12:25)** | call 2 confirms only with the reply's exact words (checked in code) and a concrete misleading case | `W_witness` |
 
 ## 11. Evaluation architecture
 
@@ -189,7 +191,12 @@ changes no dev verdict); rule-only on the stress set catch 0.000, keep 0.857 (`r
 
 Measured on `claude-haiku-4.5` (dev, 3-fold grouped CV, `score.py`): run A 0.754 / 0.750 / 0.758, kappa 0.623;
 run B (same code) 0.721 / 0.700 / 0.744, kappa 0.575; same verdict 0.974; 1.73 calls per reply. Correct originals pass
-0.805 / 0.765 (baseline 0.858). Settings screened on the fast subset: see `results/experiments.md`; none shipped.
+0.805 / 0.765 (baseline 0.858). Settings screened on the fast subset: see `results/experiments.md`.
+
+**Shipped 12:25: `VERIFY_WITNESS = True`** (call 2 confirms only with the reply's exact words, checked in code, and a
+concrete misleading case; unproven confirms go to call 3). Full dev with `run_dev.sh` (12:33): 0.850 / 0.813 / 0.891,
+kappa 0.772, same verdict 0.991, 1.88 calls per reply, correct originals pass 0.920. The prompt was designed on dev
+false fails, so this is an upper bound for unseen data.
 
 ## 12. Risks and next steps
 

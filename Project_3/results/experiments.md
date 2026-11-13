@@ -16,3 +16,6 @@ Every number below is produced by score.py.
 | 11-13 11:50 | C_evidence | dev (dev_pairs_113.jsonl) | 0.662 | 0.594 | 0.749 | 0.537 | n/a | 1.79 | kept conditions must quote the reply; unproven ones go to call 2 |
 | 11-13 11:48 | base (run_dev.sh, run B) | dev (dev_pairs.jsonl) | 0.721 | 0.700 | 0.744 | 0.575 | 0.974 | n/a | same code as the 11:23 base row: run-to-run noise 0.033 |
 | 11-13 12:11 | base (run_dev.sh, run C) | dev (dev_pairs.jsonl) | 0.731 | 0.723 | 0.739 | 0.601 | 1.000 | 1.75 | same code; 412 calls per run, 0 parse failures, model claude-haiku-4.5 |
+| 11-13 12:13 | W_witness (run 1 only; scored 12:17) | dev (dev_pairs.jsonl) | 0.850 | 0.813 | 0.891 | 0.767 | n/a | n/a | call 2 confirms only with the reply's exact words + a concrete case; CSV kept in commit 821ebd8 |
+| 11-13 12:21 | W_witness | dev (dev_pairs.jsonl) | 0.850 | 0.813 | 0.891 | 0.767 | 1.000 | 1.88 | call 2 confirms only with the reply's exact words + a concrete case: fewer false confirms on correct originals |
+| 11-13 12:33 | shipped default (VERIFY_WITNESS, run_dev.sh) | dev (dev_pairs.jsonl) | 0.850 | 0.813 | 0.891 | 0.772 | 0.991 | 1.88 | 441 + 436 calls, 1 parse failure per run, model claude-haiku-4.5 |
