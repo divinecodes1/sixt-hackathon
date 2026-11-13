@@ -1,0 +1,8 @@
+6 variant(s) x 1 run(s): 912 replies to judge, 1-3 LLM calls each
+  base        current final_judge.py
+  S_second_look call 2 re-checks passes whose own fields show a policy difference
+  C_evidence  kept conditions must quote the reply; unproven ones go to call 2
+  K_clauses   numbered policy clauses; cited clause text checked in code
+  H_hedge     certainty from the original words; quantities to scope; gloss last
+  V_deanchor  call 2 sees where to look, not the first reviewer's conclusion
+| 11-13 10:26 | base | dev (dev_pairs_fast.jsonl) | 0.716 | 0.733 | 0.700 | 0.599 | n/a | 0.66 | current final_judge.py |

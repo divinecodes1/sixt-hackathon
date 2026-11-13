@@ -288,6 +288,14 @@ class RentAware(NaiveLast):
                 if b <= cutoff:
                     self.durations[v.product].append(b - a + 1)
                     self.durations[None].append(b - a + 1)
+        # sorted durations + prefix sums: expected_on_rent in O(log n) instead of a scan of every rental per call
+        self._dur = {}
+        for k, ds in self.durations.items():
+            ds = sorted(ds)
+            pre = [0]
+            for d in ds:
+                pre.append(pre[-1] + d)
+            self._dur[k] = (ds, pre)
         self.util_ratio = self._plan_ratio(fleet, train_ids, cutoff)
         return self
 
@@ -312,11 +320,14 @@ class RentAware(NaiveLast):
     def expected_on_rent(self, product: str, elapsed: int, horizon: int) -> float:
         """Expected days still on rent within the next `horizon` days, for a rental already running `elapsed` days:
         mean of min(duration - elapsed, horizon) over completed training rentals longer than `elapsed`."""
-        pool = self.durations.get(product) if len(self.durations.get(product, [])) >= 20 else self.durations.get(None)
-        longer = [d - elapsed for d in pool or [] if d > elapsed]
-        if not longer:      # running longer than any rental we have seen: assume it continues
+        key = product if len(self.durations.get(product, [])) >= 20 else None
+        ds, pre = self._dur.get(key, ([], [0]))
+        i = bisect_right(ds, elapsed)               # rentals longer than `elapsed`
+        if i == len(ds):    # running longer than any rental we have seen: assume it continues
             return float(horizon)
-        return float(sum(min(x, horizon) for x in longer) / len(longer))
+        j = bisect_right(ds, elapsed + horizon)     # ... of which these end within the horizon
+        total = (pre[j] - pre[i]) - elapsed * (j - i) + horizon * (len(ds) - j)
+        return float(total / (len(ds) - i))
 
     def prior_for(self, v: Vehicle) -> tuple[float, float]:
         for key in reversed(self._keys(v)):

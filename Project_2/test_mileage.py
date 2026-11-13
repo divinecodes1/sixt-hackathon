@@ -116,6 +116,24 @@ def _flags_for(rows, vid):
     return [f for f in M.flags(M.build_fleet(rows)) if f["vhcl_anon_id"] == vid]
 
 
+class ExpectedOnRent(unittest.TestCase):
+    def test_fast_version_matches_definition(self):
+        """mean of min(d - elapsed, horizon) over completed rentals longer than elapsed (horizon if there are none)."""
+        rng = random.Random(1)
+        m = M.RentAware()
+        m.durations = {"ShortTerm": [rng.randint(1, 13) for _ in range(40)], "LongTerm": [rng.randint(28, 120)
+                       for _ in range(5)], None: []}
+        m.durations[None] = m.durations["ShortTerm"] + m.durations["LongTerm"]
+        m._dur = {k: (sorted(v), [0] + [sum(sorted(v)[:i + 1]) for i in range(len(v))]) for k, v in m.durations.items()}
+        for product in ("ShortTerm", "LongTerm", "unknown"):
+            pool = m.durations[product] if len(m.durations.get(product, [])) >= 20 else m.durations[None]
+            for elapsed in range(0, 130, 3):
+                for horizon in (1, 7, 30, 90):
+                    longer = [d - elapsed for d in pool if d > elapsed]
+                    want = float(horizon) if not longer else sum(min(x, horizon) for x in longer) / len(longer)
+                    self.assertAlmostEqual(m.expected_on_rent(product, elapsed, horizon), want, places=9)
+
+
 class Flags(unittest.TestCase):
     def test_one_off_typos_are_isolated_outliers_without_cascade(self):
         rows = synth_rows()

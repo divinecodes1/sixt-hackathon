@@ -1,0 +1,14 @@
+fold 1/3: 72 cases scored, 154 example cases
+final_judge: number rule = verdict, 8 examples
+  judged 25/75 replies
+  judged 50/75 replies
+  judged 75/75 replies
+fold 2/3: 77 cases scored, 149 example cases
+final_judge: number rule = verdict, 8 examples
+  judged 25/80 replies
+  judged 50/80 replies
+  judged 75/80 replies
+  judged 80/80 replies
+fold 3/3: 77 cases scored, 149 example cases
+final_judge: number rule = verdict, 8 examples
+  judged 25/80 replies
