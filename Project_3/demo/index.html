@@ -440,7 +440,7 @@ function renderCustom() {
       <label class="f">Reply to judge<textarea id="cr">${esc(d.r)}</textarea></label>
       <details class="raw"><summary>Policy (the reference the judge compares against)</summary><pre>${esc(S.state.policy)}</pre></details>
     </div>
-    <div class="run-panel"><div class="run"><button class="btn" id="go">▶ Judge my reply</button><span class="hint">Your text stays on this local demo server.</span></div>
+    <div class="run-panel"><div class="run"><button class="btn" id="go">▶ Judge my reply</button><span class="hint">Your text is sent only to the judge model (claude-haiku-4.5); nothing is stored.</span></div>
       <div class="statusline" id="live-status" aria-live="polite">Ready.</div></div>
     <div class="section-head"><h3>Decision explanation</h3><span>The code rule appears first, followed by model calls.</span></div>
     <div class="traces single" id="traces">${trace("Your reply", S.runs.x)}</div>`;
@@ -459,7 +459,7 @@ function renderCustom() {
 async function runOne(key, body, title) {
   S.runs[key] = { loading: true }; setStatus(`Judging ${title.toLowerCase()}…`, true); paint();
   try { S.runs[key] = await api("/api/judge", body) } catch (err) { S.runs[key] = { error: String(err), calls: [] } }
-  setStatus(S.runs[key].error ? `${title} stopped: ${S.runs[key].error}` : `${title} complete: ${String(S.runs[key].verdict).toUpperCase()}.`);
+  setStatus(S.runs[key].error ? `${title} stopped: ${S.runs[key].error}` : `${title}: ${String(S.runs[key].verdict).toUpperCase()}.`);
   if (S.mode === "custom" && !S.runs[key].error) showJourney(3);
   paint();
   function paint() {
