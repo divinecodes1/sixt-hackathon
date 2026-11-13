@@ -27,9 +27,22 @@ class MockLLM(http.server.BaseHTTPRequestHandler):
     log: list[str] = []
     bodies: list[dict] = []
 
+    reject_temperature = False   # behave like Anthropic API version 2026-10-21: temperature -> HTTP 400
+    fail_statuses: list[int] = []  # statuses to return (once each) before answering normally
+
+    def _error(self, status: int, message: str):
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({"error": {"type": "invalid_request_error", "message": message}}).encode())
+
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         MockLLM.bodies.append(body)
+        if MockLLM.fail_statuses:
+            return self._error(MockLLM.fail_statuses.pop(0), "overloaded")
+        if MockLLM.reject_temperature and "temperature" in body:
+            return self._error(400, "temperature: this parameter is not supported for this API version")
         system, user = body["messages"][0]["content"], body["messages"][1]["content"]
         reply = re.findall(r'<reply lang="[^"]*">(.*?)</reply>', user, flags=re.S)[-1]
         if system == fj.SYSTEM_CHECK:
@@ -38,12 +51,26 @@ class MockLLM(http.server.BaseHTTPRequestHandler):
             claim = {"quote": reply[:40], "number_vs_policy": "no_number", "violates_criterion": bad, "reason": "test"}
             if "dropcond" in reply:  # call 1 records a dropped condition but does not call it a violation
                 claim["policy_conditions"] = [{"condition": "if not reserved", "status": "dropped"}]
+            if "noevidence" in reply:  # "kept" without words of the reply to show for it
+                claim["policy_conditions"] = [{"condition": "if not reserved", "status": "kept", "evidence": ""}]
+            if "withevidence" in reply:  # "kept", quoting the reply (with different case and spacing)
+                claim["policy_conditions"] = [{"condition": "if not reserved", "status": "kept",
+                                               "evidence": "  IF THE CAR  is not reserved"}]
+            if "badclause" in reply:
+                claim.update(clause_id="C3", policy_rule="free upgrades are always guaranteed")
+            if "goodclause" in reply:
+                cid = next(k for k, v in fj.CONFIG["clauses"].items() if "Grace period" in v)
+                claim.update(clause_id=cid, policy_rule="grace period of 29 minutes")
             out = "<json>" + json.dumps({"claims": [claim],
                                          "verdict": "FAIL" if bad else "PASS"}) + "</json>"
         elif system == fj.SYSTEM_VERIFY:
             kind = "verify"
             out = "<json>" + json.dumps({"findings": [{"id": 1, "decision": "confirmed" if "counter" in reply
                                                        else "rejected"}]}) + "</json>"
+        elif system == fj.SYSTEM_VERIFY_NEUTRAL:
+            kind = "verify"
+            out = "<json>" + json.dumps({"findings": [{"id": 1, "decision": "violation" if "counter" in reply
+                                                       else "no_violation"}]}) + "</json>"
         else:
             kind = "holistic"
             out = "Fine.\n<verdict>PASS</verdict>"
@@ -157,7 +184,8 @@ class Settings(Pipeline):
     """The recipe settings change only what they claim to change; defaults keep the measured behaviour."""
     def setUp(self):
         self.saved = {k: getattr(fj, k) for k in ("PREFILL", "THINKING_BUDGET", "EXAMPLE_STYLE", "NUMBER_RULE_MAX",
-                                                   "SECOND_LOOK", "ADJUDICATE")}
+                                                   "SECOND_LOOK", "ADJUDICATE", "CONDITION_EVIDENCE", "CLAUSE_IDS",
+                                                   "HEDGE_FROM_QUOTE", "VERIFY_DEANCHOR")}
         MockLLM.bodies.clear()
 
     def tearDown(self):
@@ -167,7 +195,10 @@ class Settings(Pipeline):
 
     def test_defaults_unchanged(self):
         self.assertEqual(self.saved, {"PREFILL": False, "THINKING_BUDGET": 0, "EXAMPLE_STYLE": "single",
-                                      "NUMBER_RULE_MAX": "verdict", "SECOND_LOOK": False, "ADJUDICATE": False})
+                                      "NUMBER_RULE_MAX": "verdict", "SECOND_LOOK": False, "ADJUDICATE": False,
+                                      "CONDITION_EVIDENCE": False, "CLAUSE_IDS": False, "HEDGE_FROM_QUOTE": False,
+                                      "VERIFY_DEANCHOR": False})
+        self.assertEqual(fj._check_instructions(), fj.CHECK_INSTRUCTIONS)
         self.assertEqual(self.calls_for("You can extend dropcond at the counter."), ("pass", ["check"]))
         MockLLM.bodies.clear()
         self.calls_for("You can usually extend your rental.")
@@ -252,3 +283,113 @@ class ReviewFixes(Settings):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Transport(Pipeline):
+    """Gateway behaviour that must never abort a run or change the number of LLM calls."""
+
+    def setUp(self):
+        self._wait = fj._bj._wait
+        fj._bj._wait = lambda attempt, retry_after: 0
+        MockLLM.bodies.clear()
+
+    def tearDown(self):
+        fj._bj._wait = self._wait
+        MockLLM.reject_temperature = False
+        MockLLM.fail_statuses = []
+        os.environ.pop("JUDGE_LLM_OMIT_TEMPERATURE", None)
+
+    def test_temperature_sent_by_default(self):
+        self.calls_for("You can usually extend your rental.")
+        self.assertEqual(MockLLM.bodies[0]["temperature"], 0)
+
+    def test_temperature_rejected_is_resent_without_it(self):
+        MockLLM.reject_temperature = True
+        before = fj.STATS["temperature_dropped"]
+        self.assertEqual(self.calls_for("You can usually extend your rental."), ("pass", ["check"]))
+        self.assertEqual([("temperature" in b) for b in MockLLM.bodies], [True, False])
+        self.assertEqual(fj.STATS["temperature_dropped"], before + 1)
+
+    def test_omit_temperature_env(self):
+        os.environ["JUDGE_LLM_OMIT_TEMPERATURE"] = "1"
+        MockLLM.reject_temperature = True
+        self.assertEqual(self.calls_for("You can usually extend your rental."), ("pass", ["check"]))
+        self.assertEqual(len(MockLLM.bodies), 1)
+        self.assertNotIn("temperature", MockLLM.bodies[0])
+
+    def test_overloaded_and_timeout_are_retried(self):
+        MockLLM.fail_statuses = [529, 408]
+        self.assertEqual(self.calls_for("You can usually extend your rental."), ("pass", ["check"]))
+        self.assertEqual(len(MockLLM.bodies), 3)
+
+    def test_other_400_still_fails_fast(self):
+        MockLLM.fail_statuses = [400]
+        with self.assertRaises(fj._bj.LLMError):
+            fj.judge("Q?", "You can usually extend your rental.", "en", CRITERION, POLICY)
+        self.assertEqual(len(MockLLM.bodies), 1)
+
+
+class EvidenceSwitches(Settings):
+    """CONDITION_EVIDENCE, CLAUSE_IDS, HEDGE_FROM_QUOTE, VERIFY_DEANCHOR (all default off)."""
+
+    def test_quote_found(self):
+        self.assertTrue(fj.quote_found("  IF THE CAR  is not reserved", "Yes, if the car is not reserved."))
+        self.assertTrue(fj.quote_found("sofern das Auto nicht reserviert ist", "Ja, sofern das Auto nicht reserviert ist."))
+        self.assertTrue(fj.quote_found("as long as the car is not reservd", "as long as the car is not reserved"))
+        self.assertFalse(fj.quote_found("if the car is not reserved", "You can always extend."))
+        self.assertFalse(fj.quote_found("", "anything"))
+
+    def test_split_clauses_generic(self):
+        c = fj.split_clauses(POLICY)
+        self.assertTrue(any("Grace period" in v for v in c.values()))
+        self.assertFalse(any(v.strip(" |-") in ("key | Rule", "") for v in c.values()))
+        self.assertEqual(list(c), [f"C{i}" for i in range(1, len(c) + 1)])
+        other = fj.split_clauses("# Shop\n\n- Returns within 30 days.\n- Only unused items.\n\nFree shipping over 50 EUR.")
+        self.assertEqual(other, {"C1": "Shop: Returns within 30 days.", "C2": "Shop: Only unused items.",
+                                 "C3": "Shop: Free shipping over 50 EUR."})
+
+    def test_unproven_condition_goes_to_verify_and_can_pass(self):
+        self.assertEqual(self.calls_for("You can extend noevidence in the app."), ("pass", ["check"]))  # switch off
+        fj.CONDITION_EVIDENCE = True
+        MockLLM.bodies.clear()
+        self.assertEqual(self.calls_for("You can extend noevidence in the app."), ("pass", ["check", "verify"]))
+        self.assertEqual(self.calls_for("You can extend noevidence at the counter."), ("fail", ["check", "verify"]))
+        self.assertIn('"evidence"', MockLLM.bodies[0]["messages"][1]["content"])
+
+    def test_proven_condition_needs_no_verify(self):
+        fj.CONDITION_EVIDENCE = True
+        self.assertEqual(self.calls_for("withevidence: you can extend if the car is not reserved, at the counter."),
+                         ("pass", ["check"]))
+
+    def test_clause_ids(self):
+        fj.CLAUSE_IDS = True
+        self.assertEqual(self.calls_for("goodclause: you may return 29 minutes late."), ("pass", ["check"]))
+        self.assertEqual(self.calls_for("badclause: free upgrade at the counter."), ("fail", ["check", "verify"]))
+        self.assertEqual(self.calls_for("badclause: free upgrade in the app."), ("pass", ["check", "verify"]))
+        content = MockLLM.bodies[0]["messages"][1]["content"]
+        self.assertIn("[C1] ", content)
+        self.assertIn('"clause_id"', content)
+
+    def test_hedge_from_quote_prompt(self):
+        fj.HEDGE_FROM_QUOTE = True
+        text = fj._check_instructions()
+        self.assertIn('"hedge_words_reply"', text)
+        self.assertNotIn("some, 1 = often", text)
+        self.assertLess(text.index('"hedge_words_reply": []'), text.index('"gloss_en"'))
+        self.assertEqual(self.calls_for("You can usually extend your rental."), ("pass", ["check"]))
+
+    def test_all_schema_switches_compose(self):
+        fj.CLAUSE_IDS = fj.CONDITION_EVIDENCE = fj.HEDGE_FROM_QUOTE = True
+        text = fj._check_instructions()
+        for field in ('"clause_id"', '"evidence"', '"hedge_words_reply"'):
+            self.assertIn(field, text)
+
+    def test_verify_deanchor(self):
+        fj.VERIFY_DEANCHOR = True
+        self.assertEqual(self.calls_for("You can always extend at the counter."), ("fail", ["check", "verify"]))
+        content = MockLLM.bodies[1]["messages"][1]["content"]
+        self.assertEqual(MockLLM.bodies[1]["messages"][0]["content"], fj.SYSTEM_VERIFY_NEUTRAL)
+        self.assertNotIn("reviewer", content.lower())
+        self.assertIn("passage:", content)
+        # call 1 said fail, neutral call 2 says no violation: still a disagreement, so the tie-break decides
+        self.assertEqual(self.calls_for("You can always extend in the app."), ("pass", ["check", "verify", "holistic"]))

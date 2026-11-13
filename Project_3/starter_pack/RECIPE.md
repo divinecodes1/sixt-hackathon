@@ -59,13 +59,14 @@ The LLM keeps everything else: conditions, hedges, scope, policy details, and th
 5. **Tie-break (call 3)** only when calls 1 and 2 disagree: an independent holistic judgment with examples. With
    `ADJUDICATE = True` (off until measured), call 3 sees both reviewers' arguments and checks each one against the
    reply, instead of judging from scratch.
-6. **Examples picked by code** from the labelled pairs: one per edit type, English first, alternating labels, at most
+6. **Evidence switches (built, off until measured; `../docs/reports/Policy grounded LLM judge methods.md`).** `CONDITION_EVIDENCE`: a condition marked kept must quote the reply, and code checks the quote; unproven ones go to call 2. `CLAUSE_IDS`: `prepare()` numbers the policy clauses (no LLM, format-generic); call 1 cites a clause id and its exact words, and code checks them. `HEDGE_FROM_QUOTE`: certainty is rated from the copied original hedge words, and quantity words go to scope. `VERIFY_DEANCHOR`: call 2 sees only where to look, not the first reviewer's conclusion. Findings raised by code (not by call 1) that call 2 rejects end in pass, without a call 3.
+7. **Examples picked by code** from the labelled pairs: one per edit type, English first, alternating labels, at most
    8 (more rounds per type when there are fewer types, e.g. no `edit_type` given). The construction note (what was changed) is shown as the rationale. Temperature 0 everywhere. Reasoning in
    English with quotes in the original language. At most 3 calls per reply; no state between calls.
 
 - Check: catch goes up on dev without keep going down. *To be measured on 13 Nov with the provided key (Step 4).*
 
-**Operational safeguards (no effect on verdicts).** `run_submission.sh` raises the retry budget to 10 so one
+**Operational safeguards (no effect on verdicts).** Newer Anthropic API versions reject `temperature` with HTTP 400; the judge then resends that request without it (counted in `STATS["temperature_dropped"]`, reported by `crossval.py`; `JUDGE_LLM_OMIT_TEMPERATURE=1` skips the rejected attempt), and `dev_tools/probe_gateway.py` tests this separately from the key. HTTP 408 and 529 (overloaded) are retried. `run_submission.sh` raises the retry budget to 10 so one
 rate-limited reply cannot abort a scored run; `JUDGE_TRACE=<file>` writes one JSON line per reply (decision path,
 calls used, rule hits, reply hash, never the text) and is never read back; `MAX_TOKENS` is 3000 so long JSON
 answers are not cut off (`STATS["truncated"]` counts any that are). The code rule's overturn check compares number

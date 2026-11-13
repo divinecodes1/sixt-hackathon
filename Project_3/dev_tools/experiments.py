@@ -40,6 +40,12 @@ VARIANTS = {
     "S_second_look": ({"SECOND_LOOK": "True"}, "call 2 re-checks passes whose own fields show a policy difference"),
     "J_adjudicate": ({"ADJUDICATE": "True"}, "call 3 weighs both reviewers' arguments instead of judging afresh"),
     "SJ": ({"SECOND_LOOK": "True", "ADJUDICATE": "True"}, "second look + adjudication"),
+    "C_evidence": ({"CONDITION_EVIDENCE": "True"}, "kept conditions must quote the reply; unproven ones go to call 2"),
+    "K_clauses": ({"CLAUSE_IDS": "True"}, "numbered policy clauses; cited clause text checked in code"),
+    "H_hedge": ({"HEDGE_FROM_QUOTE": "True"}, "certainty from the original words; quantities to scope; gloss last"),
+    "V_deanchor": ({"VERIFY_DEANCHOR": "True"}, "call 2 sees where to look, not the first reviewer's conclusion"),
+    "CKHV": ({"CONDITION_EVIDENCE": "True", "CLAUSE_IDS": "True", "HEDGE_FROM_QUOTE": "True",
+              "VERIFY_DEANCHOR": "True"}, "all four evidence switches"),
 }
 
 

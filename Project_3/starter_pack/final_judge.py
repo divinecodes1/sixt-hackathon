@@ -18,10 +18,12 @@ Design document: ../docs/ARCHITECTURE.md
 
 Environment (see .env.example): JUDGE_LLM_BASE_URL, JUDGE_LLM_API_KEY, JUDGE_LLM_MODEL (claude-haiku-4.5).
 Optional: JUDGE_MAX_TOKENS (default 3000), JUDGE_TRACE (path: one JSON line per reply with the decision path), JUDGE_LLM_TIMEOUT, JUDGE_LLM_MAX_RETRIES,
+JUDGE_LLM_OMIT_TEMPERATURE=1 (never send temperature; without it, a 400 that rejects temperature is resent without it),
 JUDGE_LLM_CACHE (development only; never set it for the scored runs: it would fake consistency).
 """
 from __future__ import annotations
 
+import difflib
 import hashlib
 import json
 import os
@@ -46,13 +48,18 @@ PREFILL = False              # start the model's JSON answer with "<json>" (Haik
 THINKING_BUDGET = 0          # > 0: extended thinking on call 1 with this token budget (needs temperature 1)
 SECOND_LOOK = False          # call 1 passes but its own fields show a difference from the policy: call 2 checks it
 ADJUDICATE = False           # call 3 sees both reviewers' arguments instead of judging from scratch
+CONDITION_EVIDENCE = False   # a condition marked "kept" must quote the reply; code checks the quote, else call 2 checks
+CLAUSE_IDS = False           # policy split into numbered clauses (no LLM); call 1 cites id + exact words, code checks
+HEDGE_FROM_QUOTE = False     # certainty rated from the original words (hedge words copied), quantities go to scope
+VERIFY_DEANCHOR = False      # call 2 gets only where to look (quote, policy text), not the first reviewer's conclusion
 
 # ----------------------------------------------------------------------------------------------- state set in prepare()
 # Read-only after prepare(); judge() never writes to these.
-CONFIG: dict = {"criterion": "", "policy": "", "examples_text": "", "number_rule": "off", "policy_numbers": frozenset()}
+CONFIG: dict = {"criterion": "", "policy": "", "examples_text": "", "number_rule": "off", "policy_numbers": frozenset(),
+                "clauses": {}, "policy_numbered": ""}
 
 # Diagnostics only (never influence a verdict): calls made, parse failures, model ids the endpoint reported.
-STATS = {"calls": 0, "parse_failures": 0, "rule_fail": 0, "truncated": 0, "models": set()}
+STATS = {"calls": 0, "parse_failures": 0, "rule_fail": 0, "truncated": 0, "temperature_dropped": 0, "models": set()}
 _lock = threading.Lock()
 _cache: dict | None = None
 unparsed = 0  # read by run_judge.py's end-of-run report
@@ -90,8 +97,11 @@ def _chat(system: str, user: str, prefill: str = "", thinking: int = 0) -> str:
             if ckey in _cache:
                 return _cache[ckey]
 
+    if "temperature" in payload and os.environ.get("JUDGE_LLM_OMIT_TEMPERATURE", "") not in ("", "0"):
+        del payload["temperature"]  # gateway known to reject the parameter (see _temperature_rejected)
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-    for attempt in range(_bj.MAX_RETRIES + 1):
+    attempt = 0
+    while True:
         try:
             body = _bj._post(f"{base}/chat/completions", payload, headers, timeout)
             choice = body["choices"][0]
@@ -109,13 +119,22 @@ def _chat(system: str, user: str, prefill: str = "", thinking: int = 0) -> str:
         except urllib.error.HTTPError as e:
             if e.code in (401, 403):
                 raise _bj.LLMError(f"LLM endpoint refused the key (HTTP {e.code})")
-            if e.code not in _bj._RETRY_STATUS or attempt == _bj.MAX_RETRIES:
+            if "temperature" in payload and _temperature_rejected(e):
+                # Newer Anthropic API versions reject `temperature` with HTTP 400. Resend the same request without
+                # it (the model's default sampling). Not an LLM call: the rejected request produced no answer.
+                del payload["temperature"]
+                with _lock:
+                    STATS["temperature_dropped"] += 1
+                continue
+            if e.code not in _RETRY_STATUS or attempt >= _bj.MAX_RETRIES:
                 raise _bj.LLMError(f"LLM request failed with HTTP {e.code}") from e
             time.sleep(_bj._wait(attempt, e.headers.get("Retry-After") if e.headers else None))
+            attempt += 1
         except (urllib.error.URLError, TimeoutError) as e:
-            if attempt == _bj.MAX_RETRIES:
+            if attempt >= _bj.MAX_RETRIES:
                 raise _bj.LLMError(f"LLM request failed: {e}") from e
             time.sleep(_bj._wait(attempt, None))
+            attempt += 1
 
     if cache_path:
         with _lock:
@@ -123,6 +142,20 @@ def _chat(system: str, user: str, prefill: str = "", thinking: int = 0) -> str:
             with open(cache_path, "w", encoding="utf-8") as f:
                 json.dump(_cache, f)
     return text
+
+
+_RETRY_STATUS = _bj._RETRY_STATUS | {408, 529}  # + request timeout and Anthropic's "overloaded"
+
+
+def _temperature_rejected(e: urllib.error.HTTPError) -> bool:
+    """HTTP 400 whose error text names the temperature parameter (e.g. Anthropic API version 2026-10-21)."""
+    if e.code != 400:
+        return False
+    try:
+        detail = e.read().decode("utf-8", "replace")
+    except Exception:
+        return False
+    return "temperature" in detail.lower()
 
 
 def _parse_json(text: str) -> dict | None:
@@ -283,17 +316,44 @@ def _format_contrast(examples: list[dict]) -> str:
     return "\n".join(parts)
 
 
+_TABLE_SEP = re.compile(r"^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$")
+
+
+def split_clauses(policy: str) -> dict[str, str]:
+    """Deterministic, format-generic split of a policy into numbered clauses: each table row, list item or paragraph
+    line is one clause, prefixed with its section heading. Table header rows and separators are skipped."""
+    lines = policy.splitlines()
+    clauses, section = {}, ""
+    for i, raw in enumerate(lines):
+        line = raw.strip()
+        if not line or _TABLE_SEP.match(line):
+            continue
+        if line.startswith("#"):
+            section = line.lstrip("#").strip()
+            continue
+        if i + 1 < len(lines) and _TABLE_SEP.match(lines[i + 1].strip()):
+            continue  # table header row
+        if line.startswith("|"):
+            line = " | ".join(c.strip() for c in line.strip("|").split("|") if c.strip())
+        line = re.sub(r"^[-*+]\s+|^\d+[.)]\s+", "", line)
+        clauses[f"C{len(clauses) + 1}"] = f"{section}: {line}" if section else line
+    return clauses
+
+
 def prepare(criterion: str, policy: str, dev_pairs: list[dict]) -> None:
     policy_numbers = frozenset(v for _, v in numbers_in(policy))
     mode = _validate_number_rule(policy_numbers, dev_pairs)
     if mode == "verdict" and NUMBER_RULE_MAX == "hint":
         mode = "hint"
+    clauses = split_clauses(policy)
     CONFIG.update(
         criterion=criterion.strip(),
         policy=policy.strip(),
         policy_numbers=policy_numbers,
         number_rule=mode,
         examples_text=_format_examples(_pick_examples(dev_pairs)),
+        clauses=clauses,
+        policy_numbered="\n".join(f"[{k}] {v}" for k, v in clauses.items()),
     )
     print(f"final_judge: number rule = {CONFIG['number_rule']}, "
           f"{CONFIG['examples_text'].count('<example ')} examples", file=sys.stderr)
@@ -360,8 +420,47 @@ criterion is about them. Write at most three short sentences of reasoning in Eng
 <verdict>PASS</verdict> or <verdict>FAIL</verdict>."""
 
 
+def _sub(text: str, old: str, new: str) -> str:
+    if old not in text:
+        raise AssertionError(f"prompt fragment not found: {old[:60]!r}")
+    return text.replace(old, new, 1)
+
+
+def _check_instructions() -> str:
+    """CHECK_INSTRUCTIONS with the enabled schema switches applied (all off: the text is unchanged)."""
+    s = CHECK_INSTRUCTIONS
+    if CLAUSE_IDS:
+        s = _sub(s, '- "policy_rule": quote the relevant policy text, or null if the policy says nothing about it.',
+                 '- "clause_id": the id of the policy clause the claim is about (e.g. "C7"), or null if no clause '
+                 'covers it.\n- "policy_rule": copy the relevant words of that clause exactly, or null.')
+        s = _sub(s, '"policy_rule": "...",', '"clause_id": "C1", "policy_rule": "...",')
+    if CONDITION_EVIDENCE:
+        s = _sub(s, '   "kept" if the reply states it anywhere (any wording, any sentence, any language);',
+                 '   "kept" if the reply states it anywhere (any wording, any sentence, any language); then "evidence" '
+                 'must copy the exact words of the reply that state it (empty "evidence" means you found none);')
+        s = _sub(s, '{"condition": "...", "status": "..."}', '{"condition": "...", "status": "...", "evidence": "..."}')
+    if HEDGE_FROM_QUOTE:
+        s = _sub(s, '- "certainty_policy" and "certainty_reply": how certain the statement is, 0 = may / can / possible / some, '
+                 '1 = often / usually / most / normally, 2 = generally / as a rule, 3 = always / will / guaranteed / all / any. '
+                 'Translate the reply\'s wording to this scale (e.g. "in der Regel", "généralement", "di solito", "normalmente").',
+                 '- "hedge_words_policy" and "hedge_words_reply": copy exactly the words that express how certain or how '
+                 'conditional the statement is (e.g. "usually", "in der Regel", "peut", "di solito", "siempre"), from the '
+                 'policy and from the reply in its own language; [] if there are none.\n'
+                 '- "certainty_policy" and "certainty_reply": rate those copied words, not a translation or summary: '
+                 '0 = may / can / possible, 1 = often / usually / normally, 2 = generally / as a rule, '
+                 '3 = always / will / guaranteed / no hedge at all. Words about quantity (some, most, all, any, every) '
+                 'are not certainty: record them under "scope".')
+        s = _sub(s, '{"quote": "...", "gloss_en": "...", ', '{"quote": "...", ')
+        s = _sub(s, '"certainty_policy": 0, "certainty_reply": 0,',
+                 '"hedge_words_policy": [], "hedge_words_reply": [], "certainty_policy": 0, "certainty_reply": 0,')
+        s = _sub(s, '"violates_criterion": false, "reason": "..."}', '"gloss_en": "...", "violates_criterion": false, '
+                 '"reason": "..."}')
+    return s
+
+
 def _context(question: str, reply: str, lang: str, with_examples: bool) -> str:
-    parts = [f"<policy>\n{CONFIG['policy']}\n</policy>", f"<criterion>\n{CONFIG['criterion']}\n</criterion>"]
+    policy = CONFIG["policy_numbered"] if CLAUSE_IDS and CONFIG["policy_numbered"] else CONFIG["policy"]
+    parts = [f"<policy>\n{policy}\n</policy>", f"<criterion>\n{CONFIG['criterion']}\n</criterion>"]
     if with_examples and CONFIG["examples_text"]:
         parts.append("<examples>\nLabelled replies to other questions, for calibration:\n"
                      f"{CONFIG['examples_text']}\n</examples>")
@@ -380,6 +479,52 @@ def _findings(check: dict, rule_numbers: list[str]) -> list[dict]:
                         "policy_rule": c.get("policy_rule")})
     if not out and str(check.get("verdict", "")).upper() == "FAIL":
         out.append({"quote": "(whole reply)", "reason": "overall verdict FAIL", "policy_rule": None})
+    return out
+
+
+def _norm(text: str) -> str:
+    text = text.casefold().replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"')
+    text = text.replace("«", '"').replace("»", '"').replace("„", '"')
+    text = re.sub(r"[*_`]+", "", text)  # markdown emphasis in the policy; models rarely copy it
+    return re.sub(r"\s+", " ", text).strip(" .,;:!?\"'")
+
+
+def quote_found(quote: str, source: str, min_cover: float = 0.85) -> bool:
+    """True if the quote occurs in the source: exactly after normalising case, quotes and spaces, or as one
+    contiguous block covering at least min_cover of the quote (tolerates small copying slips)."""
+    q, src = _norm(str(quote or "")), _norm(source)
+    if len(q) < 3:
+        return False
+    if q in src:
+        return True
+    m = difflib.SequenceMatcher(None, q, src, autojunk=False).find_longest_match(0, len(q), 0, len(src))
+    return m.size >= min_cover * len(q)
+
+
+def _evidence_findings(check: dict, reply: str) -> list[dict]:
+    """Code-side checks of call 1's evidence (CONDITION_EVIDENCE, CLAUSE_IDS), only on claims call 1 did not already
+    mark as violating. Each finding asks call 2 to look; none is a verdict by itself."""
+    out = []
+    for c in check.get("claims") or []:
+        if not isinstance(c, dict) or c.get("violates_criterion") is True:
+            continue
+        quote, rule = str(c.get("quote", "")), c.get("policy_rule")
+        if CONDITION_EVIDENCE:
+            for d in c.get("policy_conditions") or []:
+                if (isinstance(d, dict) and str(d.get("status", "")).lower() == "kept"
+                        and not quote_found(d.get("evidence", ""), reply)):
+                    out.append({"quote": quote, "policy_rule": rule, "source": "code",
+                                "reason": f'the policy attaches "{d.get("condition", "")}"; it was marked as stated, '
+                                          "but no words of the reply stating it were found",
+                                "look_for": f'does the reply state the policy condition "{d.get("condition", "")}"?'})
+        if CLAUSE_IDS and rule:
+            cid = str(c.get("clause_id") or "")
+            clause = CONFIG["clauses"].get(cid, "")
+            if not quote_found(str(rule), clause):
+                where = f"clause {cid}" if clause else "the policy"
+                out.append({"quote": quote, "policy_rule": rule, "source": "code",
+                            "reason": f"the policy text cited for this claim was not found in {where}",
+                            "look_for": "which policy clause is this claim really about, and does it allow the claim?"})
     return out
 
 
@@ -454,6 +599,38 @@ def _listed(findings: list[dict]) -> str:
     return "\n".join(f'{i}. quote: "{f["quote"]}" | reviewer\'s reason: {f["reason"]}' for i, f in enumerate(findings, 1))
 
 
+def _listed_neutral(findings: list[dict]) -> str:
+    """VERIFY_DEANCHOR: where to look, without anyone's conclusion."""
+    rows = []
+    for i, f in enumerate(findings, 1):
+        row = f'{i}. passage: "{f["quote"]}" | policy text: {f.get("policy_rule") or "(find it yourself)"}'
+        if f.get("look_for"):
+            row += f" | question: {f['look_for']}"
+        rows.append(row)
+    return "\n".join(rows)
+
+
+SYSTEM_VERIFY_NEUTRAL = """You check specific passages of ONE customer-service reply against a written criterion, \
+using a reference policy as the only source of truth. Be precise and decide for yourself. Answer with one JSON object \
+inside <json></json> tags and nothing else."""
+
+VERIFY_NEUTRAL_INSTRUCTIONS = """The passages of the reply listed in <findings> need a careful check. For each one, \
+re-read the whole reply and the policy, copy the policy words that govern it into "policy_quote", and decide:
+- "violation": the reply violates the criterion at this point;
+- "no_violation": it does not.
+Keep in mind: leaving out a condition, limit or hedge that the policy attaches, while still stating the entitlement, \
+makes the statement stronger than the policy. That is a real change of meaning, not brevity. A condition stated \
+anywhere in the reply, in any words or language, counts as stated. Greeting, filler, sentence order, length, \
+politeness and language matter only if the criterion is about them.
+
+Answer format:
+<json>{"findings": [{"id": 1, "policy_quote": "...", "decision": "no_violation", "reason": "..."}]}</json>"""
+
+
+def _confirmed(d) -> bool:
+    return isinstance(d, dict) and str(d.get("decision", "")).strip().lower() in ("confirmed", "violation")
+
+
 # ================================================================================================ judge()
 def judge(question: str, reply: str, lang: str, criterion: str, policy: str) -> str:
     if not CONFIG["criterion"]:  # run without prepare(): still works, without examples or rule
@@ -468,7 +645,7 @@ def judge(question: str, reply: str, lang: str, criterion: str, policy: str) -> 
     if rule_numbers:
         user += ("\n\n<code_check>Numbers in the reply that do not appear in the policy: "
                  + ", ".join(rule_numbers) + ". Check them carefully.</code_check>")
-    check = _parse_json(_ask(t, SYSTEM_CHECK, user + "\n\n" + CHECK_INSTRUCTIONS,
+    check = _parse_json(_ask(t, SYSTEM_CHECK, user + "\n\n" + _check_instructions(),
                              prefill=prefill, thinking=THINKING_BUDGET))
 
     if rule_numbers and CONFIG["number_rule"] == "verdict" and not _rule_overturned(check, rule_numbers):
@@ -478,7 +655,9 @@ def judge(question: str, reply: str, lang: str, criterion: str, policy: str) -> 
 
     if check is None:  # unparseable: let the holistic judgment decide (deterministic fallback)
         return _trace(t, "call1_unreadable>holistic", _holistic(t, question, reply, lang) or "fail")
-    findings = _findings(check, rule_numbers)
+    findings = [dict(f, source="call1") for f in _findings(check, rule_numbers)]
+    if CONDITION_EVIDENCE or CLAUSE_IDS:
+        findings += _evidence_findings(check, reply)
 
     if not findings:
         diffs = _differences(check) if SECOND_LOOK else []
@@ -487,8 +666,7 @@ def judge(question: str, reply: str, lang: str, criterion: str, policy: str) -> 
         # ---- call 2 (second look): call 1 passed, but its own fields record differences from the policy
         user2 = _context(question, reply, lang, with_examples=False) + f"\n\n<findings>\n{_listed(diffs)}\n</findings>"
         look = _parse_json(_ask(t, SYSTEM_VERIFY, user2 + "\n\n" + SECOND_LOOK_INSTRUCTIONS, prefill=prefill))
-        reasons = [str(d.get("reason", "")) for d in (look or {}).get("findings") or []
-                   if isinstance(d, dict) and str(d.get("decision", "")).lower() == "confirmed"]
+        reasons = [str(d.get("reason", "")) for d in (look or {}).get("findings") or [] if _confirmed(d)]
         if not reasons:
             return _trace(t, "call1_pass>second_look_agrees", "pass")
         # call 1 (pass) and call 2 (violation) disagree: call 3 decides
@@ -497,13 +675,23 @@ def judge(question: str, reply: str, lang: str, criterion: str, policy: str) -> 
         return _trace(t, "second_look_confirms>tiebreak", _holistic(t, question, reply, lang, dispute) or "fail")
 
     # ---- call 2: fresh-context verification of the candidate violations only
-    user2 = _context(question, reply, lang, with_examples=False) + f"\n\n<findings>\n{_listed(findings)}\n</findings>"
-    verify = _parse_json(_ask(t, SYSTEM_VERIFY, user2 + "\n\n" + VERIFY_INSTRUCTIONS, prefill=prefill))
+    t["sources"] = sorted({f["source"] for f in findings})
+    if VERIFY_DEANCHOR:
+        system2, listed2, instr2 = SYSTEM_VERIFY_NEUTRAL, _listed_neutral(findings), VERIFY_NEUTRAL_INSTRUCTIONS
+    else:
+        system2, listed2, instr2 = SYSTEM_VERIFY, _listed(findings), VERIFY_INSTRUCTIONS
+    user2 = _context(question, reply, lang, with_examples=False) + f"\n\n<findings>\n{listed2}\n</findings>"
+    verify = _parse_json(_ask(t, system2, user2 + "\n\n" + instr2, prefill=prefill))
     decisions = [d for d in (verify or {}).get("findings") or [] if isinstance(d, dict)]
-    if any(str(d.get("decision", "")).lower() == "confirmed" for d in decisions):
-        return _trace(t, "call1_fail>verify_confirms", "fail")
+    call1 = [f for f in findings if f["source"] == "call1"]
+    if any(_confirmed(d) for d in decisions):
+        return _trace(t, "call1_fail>verify_confirms" if call1 else "code_flags>verify_confirms", "fail")
+
+    if not call1:  # only code-side evidence checks, and call 2 found nothing: call 1's pass stands
+        return _trace(t, "code_flags>verify_rejects", "pass")
 
     # ---- call 3: call 1 and call 2 disagree (or call 2 unreadable): tie-break
+    findings = call1
     dispute = (f"Reviewer A says the reply violates the criterion:\n{_listed(findings)}\nReviewer B disagrees: "
                + (" | ".join(str(d.get("reason", "")) for d in decisions) or "(no readable answer)"))
     return _trace(t, "verify_rejects>tiebreak", _holistic(t, question, reply, lang, dispute) or "fail")

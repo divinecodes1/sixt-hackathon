@@ -56,6 +56,10 @@ def main(argv: list[str] | None = None) -> None:
         s = mod.STATS
         print(f"LLM calls {s['calls']}, parse failures {s['parse_failures']}, rule fails {s['rule_fail']}, "
               f"models reported by the endpoint: {sorted(s['models'])}", file=sys.stderr)
+        if s.get("temperature_dropped"):
+            print(f"WARNING: the endpoint rejected temperature {s['temperature_dropped']} times; those calls were "
+                  "resent without it (default sampling). Set JUDGE_LLM_OMIT_TEMPERATURE=1 to skip the rejected "
+                  "attempt; check run-to-run consistency.", file=sys.stderr)
 
 
 if __name__ == "__main__":
