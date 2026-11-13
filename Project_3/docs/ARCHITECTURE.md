@@ -220,3 +220,8 @@ originals pass 0.965; criterion 2 (`run_dev.sh` 14:06): 0.883 / 0.867 / 0.900 (w
 | Gateway not repeatable at temperature 0 | unknown | `probe_gateway.py`; report consistency honestly |
 | Rate limits during the four scored runs | medium | Retries 10; lower `WORKERS`; start right after the freeze |
 | Call 3 parse failure biases to fail | low if prompts parse | Watch `parse_failures` in every run |
+
+## Hosted demo
+https://divinecodes-judge-the-judge.vercel.app runs `demo/server.py` as a Vercel Python function (`api/index.py`,
+`vercel.json`). It imports `starter_pack/final_judge.py` unchanged; the gateway URL, key and model are Vercel
+sensitive environment variables, never sent to the browser, and error messages are redacted. No response cache.

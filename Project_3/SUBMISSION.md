@@ -14,6 +14,8 @@
 
 **Project:** Project 3: Judge the Judge (Meta-Evaluation of LLM-as-Judge)
 
+**Live demo:** https://divinecodes-judge-the-judge.vercel.app (the judge on real `claude-haiku-4.5`; try a labelled case or your own reply)
+
 ## Problem and approach
 AI judges decide whether a chatbot change is better. They ignore harmless rewording, which is good, but they miss
 small edits that change the meaning: a dropped "if the car is not reserved", "usually" → "always". Those edits turn
