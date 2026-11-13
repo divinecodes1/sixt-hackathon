@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Judge Architecture</title>
+<!-- The shipped decision paths of starter_pack/final_judge.py (switches that are off are left out).
+     Source of truth: docs/ARCHITECTURE.md. Used as a scene in submission/make_narrated_video.py. -->
+<style>
+  :root { --ink: #1a1a1a; --accent: #ff5f00; --muted: #666; --bg: #ffffff; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: Arial, Helvetica, sans-serif; }
+  section { width: 1280px; height: 720px; box-sizing: border-box; padding: 34px 54px; position: relative; }
+  .kicker { font-size: 13px; letter-spacing: 2px; color: var(--accent); font-weight: bold; }
+  h1 { font-size: 30px; margin: 6px 0 4px; } h1 span { color: var(--accent); }
+  .sub { font-size: 15px; color: var(--muted); margin: 0 0 6px; }
+  #d { display: flex; justify-content: center; height: 540px; }
+  #d pre { margin: 0; width: 100%; height: 100%; }
+  #d svg { width: 100% !important; max-width: none !important; height: 100% !important; }
+  .foot { position: absolute; left: 54px; right: 54px; bottom: 20px; font-size: 12px; color: #777;
+          border-top: 1px solid #ddd; padding-top: 6px; }
+</style></head><body>
+<section>
+  <div class="kicker">ARCHITECTURE · DECISION PATHS OF THE SHIPPED JUDGE</div>
+  <h1>Every path ends in code, <span>never in a free-text opinion</span></h1>
+  <p class="sub">One reply per call · no state between calls · at most 3 calls · claude-haiku-4.5, temperature 0</p>
+  <div id="d"><pre class="mermaid">
+flowchart LR
+  A["One reply<br/>+ criterion + policy"] --> R["Number rule<br/>(code, 0 calls)"]
+  R --> C1["Call 1<br/>claim-by-claim JSON:<br/>conditions kept / dropped,<br/>certainty, scope"]
+  C1 -->|"rule in verdict mode and<br/>an unknown number not cleared"| F1["FAIL · 1 call"]
+  C1 -->|"no claim violates"| P1["PASS · 1 call"]
+  C1 -->|"unreadable"| H0["Call 3 · holistic"] --> V0["verdict · 2 calls"]
+  C1 -->|"a claim violates"| C2["Call 2 · verify, fresh context:<br/>quote the reply's exact words<br/>+ a concrete misleading case"]
+  C2 -->|"confirmed, quote found in the reply"| F2["FAIL · 2 calls"]
+  C2 -->|"every finding answered,<br/>none proven"| P2["PASS · 2 calls"]
+  C2 -->|"unreadable, or a<br/>finding unanswered"| H2["Call 3 · fallback"] --> V2["verdict · 3 calls"]
+  classDef fail fill:#fdecea,stroke:#d93025,color:#1a1a1a;
+  classDef pass fill:#e6f4ea,stroke:#188038,color:#1a1a1a;
+  classDef llm fill:#fff1e6,stroke:#ff5f00,color:#1a1a1a;
+  classDef code fill:#f1f3f4,stroke:#5f6368,color:#1a1a1a;
+  class F1,F2 fail; class P1,P2 pass; class C1,C2,H0,H2 llm; class A,R,V0,V2 code;
+  </pre></div>
+  <div class="foot">starter_pack/final_judge.py · full diagram incl. switches that are off: docs/ARCHITECTURE.md</div>
+</section>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: "base", flowchart: { useMaxWidth: false, htmlLabels: true },
+    themeVariables: { fontFamily: "Arial, Helvetica, sans-serif", fontSize: "15px", lineColor: "#888" } });
+</script>
+</body></html>

@@ -264,9 +264,9 @@ tr:last-child td { border-bottom: 0 }
         <div class="fbox"><span class="dot">1</span><div><h3>Call 1 · claim-by-claim check (JSON)</h3>
           <p>Every claim is quoted and matched to its policy rule; every condition the policy attaches is ticked kept / dropped / not applicable; certainty is rated 0–3 for policy and reply; scope and number direction are recorded. The model then decides, per claim, whether it violates the criterion.</p></div></div>
         <div class="fbox"><span class="dot">2</span><div><h3>Call 2 · fresh-context verifier</h3>
-          <p>Only when call 1 suspects a violation. Confirms or rejects each finding without the examples. Any confirmed finding → FAIL.</p></div></div>
-        <div class="fbox"><span class="dot">3</span><div><h3>Call 3 · tie-break</h3>
-          <p>Only when calls 1 and 2 disagree. A holistic judgment with examples, ending in PASS or FAIL.</p></div></div>
+          <p>Only when call 1 suspects a violation. Confirms or rejects each finding in a fresh context. A confirm counts only with the reply's exact words (checked in code) and a concrete case where a reader is misled → FAIL. Every finding answered and none proven → PASS.</p></div></div>
+        <div class="fbox"><span class="dot">3</span><div><h3>Call 3 · fallback</h3>
+          <p>Only when call 2's answer is unreadable or leaves a finding unanswered. A holistic judgment with examples, ending in PASS or FAIL.</p></div></div>
       </div>
       <div class="grid2">
         <div class="card"><h3>Rules kept</h3><ul>
@@ -277,7 +277,7 @@ tr:last-child td { border-bottom: 0 }
           <li>Runs the real <code>final_judge.py</code>, unchanged</li>
           <li>Records each LLM call for display only</li>
           <li>Leaves the case's own source reply out of the examples, like cross-validation</li>
-          <li>The API key stays on the local server</li></ul></div>
+          <li>The API key stays on the server, never in the browser</li></ul></div>
       </div>
       <div class="card"><h3>Scoring</h3>
         <p class="lede" style="margin-top:6px">A harmful edit is <b>caught</b> when the original passes and the edited reply fails. A harmless edit is <b>kept</b> when both pass.
@@ -501,7 +501,7 @@ function renderOutcome() {
 
 /* ---------- trace rendering ---------- */
 const CALLS = { check: ["1", "Call 1 · claim-by-claim check"], verify: ["2", "Call 2 · verify findings"], second_look: ["2", "Call 2 · second look"],
-  holistic: ["3", "Call 3 · tie-break"], adjudicate: ["3", "Call 3 · adjudicate the dispute"], other: ["?", "LLM call"] };
+  holistic: ["3", "Call 3 · fallback"], adjudicate: ["3", "Call 3 · adjudicate the dispute"], other: ["?", "LLM call"] };
 const PATHS = { rule: "The code rule decided: a number not in the policy, not cleared by call 1.",
   call1_pass: "Call 1 found no violation.", "call1_fail>verify_confirms": "Call 1 flagged a violation and the verifier confirmed it.",
   "verify_rejects>tiebreak": "Call 1 flagged, the verifier rejected: call 3 broke the tie.",
