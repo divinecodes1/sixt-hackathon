@@ -1,0 +1,17 @@
+final_judge: number rule = verdict, 8 examples
+  judged 25/320 replies
+  judged 50/320 replies
+  judged 75/320 replies
+  judged 100/320 replies
+  judged 125/320 replies
+  judged 150/320 replies
+  judged 175/320 replies
+  judged 200/320 replies
+  judged 225/320 replies
+  judged 250/320 replies
+  judged 275/320 replies
+  judged 300/320 replies
+  judged 320/320 replies
+LLM calls 537, parse failures 1, truncated 0, temperature_dropped 0, models reported by the endpoint: ['claude-haiku-4.5']
+WARNING: 1 LLM answers were neither PASS nor FAIL and were counted as fail. If your prompt makes the model reason first, raise JUDGE_LLM_MAX_TOKENS and parse the final answer.
+wrote 311 verdict rows to ../submission/criterion2_run2.csv

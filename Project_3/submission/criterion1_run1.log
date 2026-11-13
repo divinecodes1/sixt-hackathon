@@ -1,0 +1,15 @@
+final_judge: number rule = verdict, 8 examples
+  judged 25/300 replies
+  judged 50/300 replies
+  judged 75/300 replies
+  judged 100/300 replies
+  judged 125/300 replies
+  judged 150/300 replies
+  judged 175/300 replies
+  judged 200/300 replies
+  judged 225/300 replies
+  judged 250/300 replies
+  judged 275/300 replies
+  judged 300/300 replies
+LLM calls 527, parse failures 0, truncated 0, temperature_dropped 0, models reported by the endpoint: ['claude-haiku-4.5']
+wrote 291 verdict rows to ../submission/criterion1_run1.csv
