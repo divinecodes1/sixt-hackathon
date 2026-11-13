@@ -56,6 +56,8 @@ def _read(path: str) -> str:
 CRITERIA = {
     "c1": ("Criterion 1 · over-promise", os.path.join(STARTER, "JUDGE1_CRITERION.md"),
            os.path.join(STARTER, "dev_pairs.jsonl"), os.path.join(STARTER, "dev_pairs.jsonl")),
+    "c2": ("Criterion 2 · states the policy correctly", os.path.join(P3, "criterion2/CRITERION.md"),
+           os.path.join(P3, "criterion2/c2_dev_pairs.jsonl"), os.path.join(P3, "criterion2/c2_dev_pairs.jsonl")),
     "mock_numbers": ("Mock · wrong numbers", os.path.join(P3, "mock_criteria/numbers/CRITERION.md"),
                      os.path.join(P3, "mock_criteria/numbers/c2_dev_pairs.jsonl"),
                      os.path.join(P3, "mock_criteria/numbers/eval_pairs.jsonl")),

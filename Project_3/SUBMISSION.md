@@ -163,6 +163,16 @@ python3 run_judge.py --judge final_judge.py --pairs <cases.jsonl> --criterion <C
 ```
 
 ## Demo
+**Live:** https://divinecodes-judge-the-judge.vercel.app (Vercel, the unchanged `final_judge.py` on real
+`claude-haiku-4.5`; criterion 1, criterion 2 and the two mock criteria; the API key is a Vercel sensitive
+environment variable, never sent to the browser). Entry point `api/index.py`, config `vercel.json`.
+
+[`submission/demo_narrated.mp4`](submission/demo_narrated.mp4) (4 min 44 s, 11 MB, English voice-over): the full
+walkthrough: problem, insight, method, three live verdicts on the hosted demo (a dropped condition caught, a harmless
+opener kept, a typed "always … guaranteed" reply failed), the surprise criterion, and the measured results. The live
+lines are written from what the page showed; the voice is Piper, generated locally. Rebuild with
+`submission/make_narrated_video.py --voice <piper .onnx>`.
+
 [`submission/demo.mp4`](submission/demo.mp4) (62 s, no audio, captions): the shipped judge on real `claude-haiku-4.5`
 through the live demo, catching dev case J1D-0022, a dropped "as long as the branch is still open" (original PASS,
 edited FAIL, 4 calls; the README's "not reserved" example now passes, see the dropped-condition trade-off above),

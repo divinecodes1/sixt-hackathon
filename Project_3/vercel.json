@@ -1,0 +1,14 @@
+{
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 60,
+      "includeFiles": "{demo/index.html,demo/server.py,starter_pack/*.py,starter_pack/*.md,starter_pack/*.jsonl,starter_pack/*.txt,results/*report*.txt,results/experiments.md,criterion2/*,mock_criteria/**}"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api/index?__p=$1"
+    }
+  ]
+}

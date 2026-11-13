@@ -1,0 +1,15 @@
+# never upload secrets or bulky run outputs
+.env
+.env.*
+!.env.example
+**/__pycache__
+*.log
+results/*.csv
+results/*.jsonl
+submission/
+stress/
+dev_tools/
+docs/
+criterion2_drill/
+hidden*
+*.zip
