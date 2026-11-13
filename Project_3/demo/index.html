@@ -504,7 +504,10 @@ const CALLS = { check: ["1", "Call 1 · claim-by-claim check"], verify: ["2", "C
   holistic: ["3", "Call 3 · fallback"], adjudicate: ["3", "Call 3 · adjudicate the dispute"], other: ["?", "LLM call"] };
 const PATHS = { rule: "The code rule decided: a number not in the policy, not cleared by call 1.",
   call1_pass: "Call 1 found no violation.", "call1_fail>verify_confirms": "Call 1 flagged a violation and the verifier confirmed it.",
-  "verify_rejects>tiebreak": "Call 1 flagged, the verifier rejected: call 3 broke the tie.",
+  "verify_rejects>pass": "Call 1 flagged a violation; the verifier answered every finding and proved none, so PASS.",
+  "verify_rejects>tiebreak": "Call 1 flagged; the verifier's answer was unreadable or incomplete, so call 3 decided.",
+  "code_flags>verify_confirms": "Only the code's checks flagged something; the verifier confirmed it.",
+  "code_flags>verify_rejects": "Only the code's checks flagged something; the verifier found nothing, so call 1's PASS stands.",
   "call1_unreadable>holistic": "Call 1 was unreadable: the holistic call decided.",
   "call1_pass>second_look_agrees": "Call 1 passed; the second look agreed.",
   "second_look_confirms>tiebreak": "Call 1 passed, the second look disagreed: call 3 broke the tie." };
