@@ -173,13 +173,9 @@ walkthrough: problem, insight, the recipe step by step, the architecture's decis
 opener kept, a typed "always … guaranteed" reply failed), the surprise criterion, and the measured results. The live
 lines are written from what the page showed; the voice is Piper, generated locally.
 
-[`submission/demo.mp4`](submission/demo.mp4) (62 s, no audio, captions): the shipped judge on real `claude-haiku-4.5`
-through the live demo, catching dev case J1D-0022, a dropped "as long as the branch is still open" (original PASS,
-edited FAIL, 4 calls; the README's "not reserved" example now passes, see the dropped-condition trade-off above),
-failing a typed "always … guaranteed" reply, then the measured results. Every verdict in it was produced live, not
-staged; rebuild with `submission/make_demo_video.py` against a freshly started `demo/server.py`.
-
-[`submission/slides.pdf`](submission/slides.pdf) (5 slides), built from the score.py reports by `submission/make_slides.py` (rebuilt 14:35 with both criteria and the run-to-run range). Live demo: `python3 demo/server.py` (or `--mock` offline), then http://127.0.0.1:8765.
+[`submission/slides.pdf`](submission/slides.pdf) (5 slides, the required deliverable): problem, insight, architecture, results from the
+`score.py` reports, and what it means for SIXT; speaker notes in [`submission/speaker_notes.md`](submission/speaker_notes.md).
+Local demo: `python3 demo/server.py` (or `--mock` offline), then http://127.0.0.1:8765.
 
 ## Next steps
 - Shipped: `VERIFY_WITNESS` (12:25) and `TRUST_VERIFY_REJECT` (14:05). Measured and not shipped: `HEDGE_NOT_CONDITION`

@@ -1,5 +1,32 @@
 # SIXT Hackathon 2026
 
+> ## Team Divinecodes · submission: Project 3, Judge the Judge
+>
+> | | |
+> |---|---|
+> | **Write-up** | [`Project_3/SUBMISSION.md`](Project_3/SUBMISSION.md): problem, approach, models, results, how to run |
+> | **Recipe** | [`Project_3/starter_pack/RECIPE.md`](Project_3/starter_pack/RECIPE.md) · design: [`Project_3/docs/ARCHITECTURE.md`](Project_3/docs/ARCHITECTURE.md) |
+> | **Final judge** | [`Project_3/starter_pack/final_judge.py`](Project_3/starter_pack/final_judge.py), frozen at 16:00 |
+> | **Scored runs** | `Project_3/submission/criterion{1,2}_run{1,2}.csv` (pushed by 16:45) |
+> | **Slides** | [`Project_3/submission/slides.pdf`](Project_3/submission/slides.pdf) (5 slides) · [speaker notes](Project_3/submission/speaker_notes.md) |
+> | **Video** | [`Project_3/submission/demo_narrated.mp4`](Project_3/submission/demo_narrated.mp4) (walkthrough with voice-over, live verdicts) |
+> | **Live demo** | https://divinecodes-judge-the-judge.vercel.app (the frozen judge on real `claude-haiku-4.5`) |
+>
+> **Idea:** a judge that reads one reply cannot see what is missing, so call 1 lists every condition and hedge the
+> policy attaches to each claim and marks it kept or dropped; call 2 must prove a violation with the reply's own words;
+> code computes the verdict. At most 3 calls per reply, `claude-haiku-4.5`, temperature 0, nothing criterion-specific.
+>
+> **Dev results** (grouped 3-fold cross-validation, `score.py`; combined / catch / keep):
+>
+> | Criterion | Baseline | Ours |
+> |---|---|---|
+> | 1 · over-promise | 0.697 / 0.592 / 0.847 | **0.845 / 0.762 / 0.949** |
+> | 2 · surprise, "states the policy correctly" | 0.652 / 0.600 / 0.715 | **0.883 / 0.867 / 0.900** (0.776 with the judge as it was when the criterion arrived) |
+>
+> Quick check, no API key needed: `cd Project_3/starter_pack && python3 -m unittest test_final_judge && python3 offline_rule_check.py`
+>
+> *Below: the organizers' original README.*
+
 Welcome! This is the repo for the SIXT Hackathon, **Friday 13 November 2026**. Each project has its own folder with the problem, data and what to hand in.
 
 > **The goal is not a perfect solution. It is *a* solution.**
