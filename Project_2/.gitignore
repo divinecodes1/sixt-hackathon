@@ -1,4 +1,6 @@
 # Local vehicle-level data and review material must never enter the submission.
+.venv/
+__pycache__/
 data/
 results/local/
 results/*/nowcast_*.csv

@@ -89,7 +89,7 @@ def main(argv: list[str] | None = None) -> dict:
     res["starter_flags_on_raw_rows"] = starter_flags
     print(f"\nFLAGS: {len(fl)} flags ({res['flags_per_1000_readings']} flagged readings per 1,000) {res['flags'] or ''}; "
           f"the starter's raw-timestamp rules flag {res['starter_flags_on_raw_rows']} "
-          "(raw ordering; some may be stale OnRent artifacts, see EDA.md)")
+          "(raw ordering; some may be stale OnRent artifacts, see SUBMISSION.md)")
     res['runtime_seconds'] = time.perf_counter() - started
 
     out = Path(a.out)

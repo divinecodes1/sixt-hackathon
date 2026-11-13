@@ -1,3 +1,0 @@
-# Optional video-build packages; not needed to run the mileage project.
-pillow>=11
-imageio-ffmpeg>=0.6

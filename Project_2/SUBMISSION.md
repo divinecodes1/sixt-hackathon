@@ -86,7 +86,7 @@ Untouched readings flagged: **5,965/85,519**; these can include existing errors 
 so this is **not measured false-positive rate or precision**. Additional untouched flags beyond the original flag set:
 **122**. The benchmark also records recall among originally unflagged injected readings.
 
-`results/local/flag_review.md` gives local reading/rental context for top flags. Human domain adjudication remains pending;
+Vehicle-level review files are excluded from this public package. Human domain adjudication remains pending;
 no confirmed-fraud or precision claim is made. Public examples in the slides are conceptual, not copied vehicle records.
 
 ### Masked inference
@@ -106,7 +106,7 @@ They are explicitly marked for review, have no calibrated range, and are not val
 - Observed return days differ from arbitrary valuation days. Rolling nowcasts are one-day-ahead proxies, not direct labels of hidden daily mileage.
 - Conformal ranges do not guarantee 90% coverage under temporal/fleet shift or dependent repeated readings; measured coverage is reported above.
 - Long-horizon and long-term errors need separate monitoring. Unusual driving, transfers and missing rentals can trigger flags without an entry error.
-- Earlier synthetic numbers used the older availability assumption and are archived method checks, not current performance claims.
+- Synthetic checks support development only; the fleet results above are the current performance evidence.
 
 ## How to run
 Python 3.11+; verified here with Python 3.14. From the repository root:
@@ -122,26 +122,20 @@ python -m venv .venv
 .\.venv\Scripts\python.exe run_baseline.py data/data_30_percent_sample.parquet --out results
 .\.venv\Scripts\python.exe flag_benchmark.py data/data_30_percent_sample.parquet --max-vehicles 1000 --training-only --before 2025-02-01 --rate 0.02 --seeds 3 --out results/flag_benchmark.json
 .\.venv\Scripts\python.exe predict_missing.py
-.\.venv\Scripts\python.exe submission/make_submission.py
 ```
 
-Linux/macOS: replace `.\.venv\Scripts\python.exe` with `.venv/bin/python`, or use `bash setup.sh` for the public example.
-The Windows commands above need no PowerShell policy change; `setup.ps1` is optional where scripts are permitted.
+Linux/macOS: replace `.\.venv\Scripts\python.exe` with `.venv/bin/python`.
+Create the ignored `data/` directory and supply the organizer Parquet files locally before running the full-data commands.
 `python run_baseline.py` always uses the public example; input selection is explicit.
 For historical product exports: `python run_baseline.py example_file.csv --out results/example --asof 2024-08-01 --forecast-date 2024-08-31`.
 The export reselects its model using validation before its as-of date. Missing calibration is explicit rather than an invented range.
 Vehicle-level organizer outputs go to ignored `results/local/`; aggregate evidence stays in `results/`.
 
 ## Demo
-**`submission/slides.pdf`**, five slides. Reproducible source: `submission/slides.html` and this generator.
-Rebuild the PDF with `python submission/render_slides.py` (installed Chrome, Chromium or Edge).
-The safe live walkthrough is `python demo.py`, which creates made-up vehicles and exports nowcasts, future mileage and a review queue.
-For the interactive visual walkthrough, open `submission/demo.html` in a browser.
-Rebuild it with `python submission/build_demo.py`; all data and charts are embedded for offline use.
-Narrated videos: `submission/demo.mp4` is the one-minute submission cut;
-`submission/walkthrough.mp4` is the detailed explanation. Both include captions and synthesized English narration.
-Measured video duration, size and decode checks are in `submission/video_report.json`.
-No real vehicle examples are needed in the public pitch.
+**`submission/slides.pdf`** is the chosen demonstration deliverable: five slides covering the problem, method, measured results, business use and limitations.
+
+The [interactive offline demo](submission/demo.html) uses synthetic vehicles and actual model outputs.
+The five-slide PDF remains the selected submission deliverable.
 
 ## Business relevance and next steps
 A daily batch can publish mileage estimates, their age/range and an explicit review status for valuation analysts.
@@ -151,6 +145,7 @@ Then validate actual versus planned return semantics, obtain fresh monthly long-
 No monetary savings are asserted without a SIXT valuation/cost study.
 
 ## Submission safety
-The code and aggregate evidence are prepared locally. Existing tracked Parquet files require owner confirmation or exclusion
-before publication; an ignore rule does not remove files already tracked in git. No push is authorized by this write-up.
+The working package excludes organizer datasets and vehicle-level outputs. Earlier git commits still contain
+tracked organizer data; deleting working files does not remove that history. Resolve publication permission
+or remove those files from the published history before submission. No commit or push is authorized by this write-up.
 The public repository must contain code, this write-up, aggregate results and the deck by 16:45 on 13 November 2026.

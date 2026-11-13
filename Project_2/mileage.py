@@ -4,7 +4,7 @@ OnRent rows often carry stale handover mileage. We place those readings at hando
 but make the reading, rental metadata and changing vehicle attributes available only
 from the row's recorded day. This avoids assuming an unprovided live handover feed.
 The fleet sample contains planned returns later than the row timestamp, so a row
-must not automatically be interpreted as a completed rental. See EDA.md for limits.
+must not automatically be interpreted as a completed rental. See SUBMISSION.md for limits.
 
 Pieces:
 - load_rows / build_fleet: CSV -> per-vehicle observations (day, km), rental intervals, utilisation plan, segment

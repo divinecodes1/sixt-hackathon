@@ -1,7 +1,7 @@
 {
   "source_and_evidence_sha256": {
-    "mileage.py": "221c5f2f9bffb249067a0b7cd80c68b97f4dc02d269b7163f136cecfd8510d16",
-    "run_baseline.py": "d51b2e43ee102888ae30388460507e5595a841cd339e41fc6cb21b933fdf17b1",
+    "mileage.py": "e878d7f7923445d9be995a8b047b398a35acaff34150a602a2862c1b0639c2a1",
+    "run_baseline.py": "dabbfbfe43b4b12120fac8e5e094d89b8312788190786fb2840b77a679585e3f",
     "predict_missing.py": "4ea2905809f7053041d2517475f209a276725848f9312aa4d10368367e160ce5",
     "flag_benchmark.py": "3a6607ffc3729506b8caad4430162213e19c73d4b46be7dfd99b674abc12712e",
     "test_mileage.py": "85fae0ecdd99a62374d26bc5bd368b033eb165cdc73dd2a0a53b2ad943eb0f1b",
@@ -14,5 +14,16 @@
     "duckdb": "2.0.0"
   },
   "evaluation_input": "data_30_percent_sample.parquet",
-  "test_outcomes_used_for_tuning": false
+  "test_outcomes_used_for_tuning": false,
+  "measured_source_sha256": {
+    "mileage.py": "221c5f2f9bffb249067a0b7cd80c68b97f4dc02d269b7163f136cecfd8510d16",
+    "run_baseline.py": "d51b2e43ee102888ae30388460507e5595a841cd339e41fc6cb21b933fdf17b1",
+    "predict_missing.py": "4ea2905809f7053041d2517475f209a276725848f9312aa4d10368367e160ce5",
+    "flag_benchmark.py": "3a6607ffc3729506b8caad4430162213e19c73d4b46be7dfd99b674abc12712e",
+    "test_mileage.py": "85fae0ecdd99a62374d26bc5bd368b033eb165cdc73dd2a0a53b2ad943eb0f1b",
+    "results/metrics.json": "7276ed0b81f90c83eb6d33fb1e848b4b2fa81b1a38494ec081b6d688beca4759",
+    "results/flag_benchmark.json": "3ffa8ad0047d73eddee3a7018f774ff02ad2ab5890d32a66128da8b07b2623f6",
+    "results/data_profile.json": "8640a039b0aaed6002fc7f9122facae54fe16d18dac0e52723d18103ca38ddeb"
+  },
+  "cleanup_note": "Only documentation references changed in mileage.py and run_baseline.py; measured_source_sha256 retains the evaluated source hashes. Model calculations and evidence are unchanged."
 }

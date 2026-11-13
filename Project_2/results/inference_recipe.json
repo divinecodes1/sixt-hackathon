@@ -1,7 +1,0 @@
-{
-  "selected": {
-    "nowcast": "rent_aware_recent",
-    "forecast": "blend"
-  },
-  "source": "Full-sample validation selection printed by run_baseline.py before the fleet flag scan. Must match results/metrics.json."
-}
