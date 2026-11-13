@@ -4,7 +4,8 @@
 > see below). Dev: criterion 1 **0.845** (0.846 in a second pair of runs), criterion 2 (surprise) **0.883** (0.863 in two
 > other pairs), same verdict 1.000 within each pair of runs. Rules audit at 14:30: no rule broken. All four hidden-set
 > verdict CSVs are complete: 291 cases for criterion 1 and 311 for criterion 2, with 100% agreement between the two
-> runs of each criterion. Hidden scores are not reported because the organizers do not provide ground-truth labels.
+> runs of each criterion. Criterion 1 had no parse failures; each criterion-2 run had one unreadable model answer,
+> conservatively counted as fail. Hidden scores are not reported because the organizers do not provide ground-truth labels.
 > Every performance number here comes from `score.py`; nothing is estimated.
 >
 > **Code freeze (13 Nov, 15:46):** `starter_pack/final_judge.py` is frozen as last changed in commit `c331641` (14:30, comments only), sha256 `d6673c0469e4fd01…`. The scored runs use exactly this file; it is not changed after the freeze.

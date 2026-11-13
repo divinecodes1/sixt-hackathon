@@ -149,7 +149,7 @@ off or to hint mode if the new criterion does not reward it) and picks new examp
 | **Ours, shipped: + `TRUST_VERIFY_REJECT`** (`run_dev.sh` 14:06, same verdict 1.000) | **0.883** | **0.867** | **0.900** |
 | same code, earlier pair of runs (14:00) | 0.863 | 0.833 | 0.895 |
 
-Criterion 2: "does the reply state the policy correctly?", errors in both directions. 73 labelled pairs from `starter_pack/surprise/` (upstream commit 0cb5c94), 9 source replies, 3-fold CV grouped by source; `prepare()` chose number rule `verdict`. Small set: one case moves a type by 10 points.
+Criterion 2: "does the reply state the policy correctly?", errors in both directions. 73 labelled pairs from `criterion2/` (upstream commit 0cb5c94), 9 source replies, 3-fold CV grouped by source; `prepare()` chose number rule `verdict`. Small set: one case moves a type by 10 points.
 Ours per edit type: catch wrong_policy_detail 1.000, wrong_number 0.700, condition_removal 0.600; keep padding_removal
 1.000, polite_opener 0.800, sentence_reorder 0.800, filler_padding 0.700, translation 0.625. Correct originals pass
 0.849. Weakest language: it (0.609). Reports: `../results/c2_dev_pairs_report.txt`, `../results/c2_vs_baseline_report.txt`.
