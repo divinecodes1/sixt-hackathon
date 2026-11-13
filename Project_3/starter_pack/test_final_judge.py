@@ -61,7 +61,8 @@ class MockLLM(http.server.BaseHTTPRequestHandler):
             if "goodclause" in reply:
                 cid = next(k for k, v in fj.CONFIG["clauses"].items() if "Grace period" in v)
                 claim.update(clause_id=cid, policy_rule="grace period of 29 minutes")
-            out = "<json>" + json.dumps({"claims": [claim],
+            claims = [claim, dict(claim, quote=reply[-30:])] if "twoclaims" in reply else [claim]
+            out = "<json>" + json.dumps({"claims": claims,
                                          "verdict": "FAIL" if bad else "PASS"}) + "</json>"
         elif system == fj.SYSTEM_VERIFY:
             kind = "verify"
@@ -276,6 +277,11 @@ class Settings(Pipeline):
         self.assertTrue(fj.TRUST_VERIFY_REJECT)
         # call 2 gave no readable decision: not a rejection, so call 3 decides (never a silent pass)
         self.assertEqual(self.calls_for("You can always extend garbledverify in the app."),
+                         ("pass", ["check", "verify", "holistic"]))
+
+    def test_partial_verify_answer_goes_to_tiebreak(self):
+        # call 1 lists two violations, call 2 rejects only one of them: the other is unanswered, so call 3 decides
+        self.assertEqual(self.calls_for("You can always extend in the app, twoclaims at the branch."),
                          ("pass", ["check", "verify", "holistic"]))
 
     def test_hedge_not_condition_switch(self):

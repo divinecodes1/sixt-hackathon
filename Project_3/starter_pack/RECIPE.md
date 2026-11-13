@@ -60,8 +60,10 @@ The LLM keeps everything else: conditions, hedges, scope, policy details, and th
    the criterion and names one concrete case where a reader is misled; code checks the words are in the reply, and an
    unproven confirm goes to call 3.
    **Shipped 14:05: `TRUST_VERIFY_REJECT = True`** (added after the surprise criterion arrived, disclosed): if call 2
-   answers and proves no finding, the reply passes; call 3 runs only when call 2's answer is unreadable.
-5. **Fallback (call 3)**, since 14:05 only when call 2's answer is unreadable (before: whenever calls 1 and 2
+   answers every finding and proves none, the reply passes; call 3 runs only when call 2's answer is unreadable or
+   leaves a finding unanswered (guard added 14:20; in the 14:03 traces call 2 always answered every finding, so the
+   measured verdicts are unchanged).
+5. **Fallback (call 3)**, since 14:05 only when call 2's answer is unreadable or partial (before: whenever calls 1 and 2
    disagreed): an independent holistic judgment with examples. With
    `ADJUDICATE = True` (off until measured), call 3 sees both reviewers' arguments and checks each one against the
    reply, instead of judging from scratch.

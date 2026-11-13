@@ -753,8 +753,8 @@ def judge(question: str, reply: str, lang: str, criterion: str, policy: str) -> 
     if not call1:  # only code-side evidence checks, and call 2 found nothing: call 1's pass stands
         return _trace(t, "code_flags>verify_rejects", "pass")
 
-    if TRUST_VERIFY_REJECT and decisions:  # call 2 answered and proved no finding: its rejection is final
-        return _trace(t, "verify_rejects>pass", "pass")
+    if TRUST_VERIFY_REJECT and len(decisions) >= len(call1):  # call 2 answered every finding, proved none: final
+        return _trace(t, "verify_rejects>pass", "pass")  # (a partial or unreadable answer still goes to call 3)
 
     # ---- call 3: call 1 and call 2 disagree (or call 2 unreadable): tie-break
     findings = call1

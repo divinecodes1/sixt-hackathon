@@ -131,7 +131,7 @@ object under review.
 | `finish_reason == "length"` | Text kept, marker added, `STATS["truncated"]` counted | Visible in the run report; 3000 tokens leaves room for long claim lists |
 | Call 1 unreadable | Go to call 3 (holistic) | One more chance without the JSON format |
 | Call 2 unreadable | Call 3 holistic fallback | Never a silent pass |
-| Call 2 readable, no finding proven | `pass` (since 14:05, `TRUST_VERIFY_REJECT`) | Call 3 judging from scratch overturned correct rejections on criterion 2 |
+| Call 2 readable, answers every finding, none proven | `pass` (since 14:05, `TRUST_VERIFY_REJECT`; a partial answer goes to call 3, guard added 14:20, 0 of 174 dev cases affected) | Call 3 judging from scratch overturned correct rejections on criterion 2 |
 | Call 3 unreadable | `fail` | **Known bias** toward fail (hurts keep). Accepted only if `parse_failures` stays about 0 in measured runs; otherwise revisit before the freeze |
 | Missing env vars | `LLMError` before any request | Fail fast |
 
