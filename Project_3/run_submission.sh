@@ -14,6 +14,7 @@ cd starter_pack
 unset JUDGE_LLM_CACHE   # a response cache would fake run-to-run consistency: never on for scored runs
 [ "${JUDGE_LLM_MODEL:-}" = "claude-haiku-4.5" ] || { echo "JUDGE_LLM_MODEL must be claude-haiku-4.5"; exit 1; }
 PY="${PYTHON:-python3}"
+export JUDGE_LLM_MAX_RETRIES="${JUDGE_LLM_MAX_RETRIES:-10}"  # one flaky reply must not abort a scored run
 for run in 1 2; do
   "$PY" run_judge.py --judge final_judge.py --pairs "$C1_CASES" --criterion JUDGE1_CRITERION.md --policy policy.md \
       --dev dev_pairs.jsonl --out "$OUT/criterion1_run$run.csv" --workers "${WORKERS:-8}"

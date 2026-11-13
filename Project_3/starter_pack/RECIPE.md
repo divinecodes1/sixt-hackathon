@@ -45,20 +45,31 @@ The LLM keeps everything else: conditions, hedges, scope, policy details, and th
    not_applicable. It also rates certainty on a 0–3 scale for both policy and reply (covering DE/FR/ES/IT wording)
    and records scope and number direction. Only then does it decide `violates_criterion`. This turns "spot what is
    missing" into "tick off a list". The research's strongest lever: references and explicit absence checks.
-2. **The verdict is computed in code** from the fields (any claim violates → candidate fail), not from a free-text
-   PASS/FAIL. Fields are more stable run to run than a holistic token.
+2. **The candidate verdict is aggregated in code** from the per-claim `violates_criterion` booleans (any claim
+   violates → candidate fail), not from a free-text PASS/FAIL. The other fields (conditions, certainty, scope,
+   number direction) are the model's working; by default they do not change the verdict. With `SECOND_LOOK = True`
+   (off until measured), a pass whose own fields record a difference from the policy, in either direction, gets
+   call 2 to decide whether that difference matters under the criterion.
 3. **Invariance wording that stays criterion-agnostic:** "greeting, filler, sentence order, length, politeness and
    language matter only if the criterion is about them". Nothing says "openers never matter", so a tone criterion
    still works.
 4. **Verify only suspected fails (call 2, fresh context).** It confirms or rejects each finding, which targets the
    false fails on good replies. It states the general principle that "leaving out a condition the reference
    attaches makes the statement stronger, not briefer", so it does not explain real omissions away.
-5. **Tie-break (call 3)** only when calls 1 and 2 disagree: an independent holistic judgment with examples.
+5. **Tie-break (call 3)** only when calls 1 and 2 disagree: an independent holistic judgment with examples. With
+   `ADJUDICATE = True` (off until measured), call 3 sees both reviewers' arguments and checks each one against the
+   reply, instead of judging from scratch.
 6. **Examples picked by code** from the labelled pairs: one per edit type, English first, alternating labels, at most
-   8. The construction note (what was changed) is shown as the rationale. Temperature 0 everywhere. Reasoning in
+   8 (more rounds per type when there are fewer types, e.g. no `edit_type` given). The construction note (what was changed) is shown as the rationale. Temperature 0 everywhere. Reasoning in
    English with quotes in the original language. At most 3 calls per reply; no state between calls.
 
 - Check: catch goes up on dev without keep going down. *To be measured on 13 Nov with the provided key (Step 4).*
+
+**Operational safeguards (no effect on verdicts).** `run_submission.sh` raises the retry budget to 10 so one
+rate-limited reply cannot abort a scored run; `JUDGE_TRACE=<file>` writes one JSON line per reply (decision path,
+calls used, rule hits, reply hash, never the text) and is never read back; `MAX_TOKENS` is 3000 so long JSON
+answers are not cut off (`STATS["truncated"]` counts any that are). The code rule's overturn check compares number
+values, not substrings, so "19" is not confirmed by a claim quoting "190".
 
 ## Step 4. Verify
 Dev numbers use **grouped cross-validation by source reply** (`crossval.py`): the examples shown to the judge never
@@ -72,7 +83,24 @@ come from the source replies being scored. Run twice for consistency: `bash run_
 
 Per language and per edit type: see `../results/dev_pairs_report.txt` once run.
 
-- Check: the gain holds on edit types and phrasings you did not tune on. Leave-one-edit-type-out is planned.
+**Edit types not in dev.** The hidden set has new edit types, and leave-one-edit-type-out only rotates the 9 dev
+types. So we hand-wrote 99 stress cases of 11 new types (`../stress/make_stress.py`, our own mock edits, never used as
+examples): harmless `stricter_number`, `number_format`, `hedge_addition`, `paraphrase`, `condition_moved`,
+`register_change`; harmful `scope_widening`, `negation_flip`, `added_commitment`, `number_in_policy` (a generous
+number that occurs elsewhere in the policy) and `number_as_word`. `bash ../run_stress.sh` scores ours vs the baseline.
+
+| Stress set (99 cases) | combined | catch | keep | same verdict (2 runs) |
+|---|---|---|---|---|
+| Number rule alone (offline) | 0.000 | 0.000 | 0.857 | n/a |
+| Baseline, claude-haiku-4.5 | *TBD 13 Nov* | | | |
+| Ours, claude-haiku-4.5 | *TBD 13 Nov* | | | |
+
+What the offline row shows: the rule catches none of the new harmful types (they are the LLM's job), and it fires
+on 30 of 35 harmless `stricter_number` edits (keep 0.143 there): in verdict mode those replies pass only if call 1
+explicitly finds the number stricter than the policy. Whether verdict mode survives is decided by measuring that
+type (experiment R in the iterate skill).
+
+- Check: the gain holds on edit types and phrasings you did not tune on (leave-one-edit-type-out and the stress set).
 
 ## Surprise criterion
 Nothing changes in the code. `prepare()` re-validates the number rule against the new examples (it switches itself

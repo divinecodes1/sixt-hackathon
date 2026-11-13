@@ -9,12 +9,15 @@ Recipe (same code for every criterion; only --criterion, --policy and --dev chan
              verdict mode if it also fires on at least one fail example, hint mode otherwise.
      call 1  Structured check (JSON): every claim of the reply is quoted, matched to its policy rule and compared
              in both directions: numbers, the conditions/limits the policy attaches (kept or dropped?), certainty
-             level, scope. Then: does the claim violate the criterion? The verdict is computed in code.
+             level, scope. Then: does the claim violate the criterion? Code aggregates the per-claim booleans.
      call 2  Only if call 1 found a candidate violation: a fresh-context verifier confirms or rejects each finding.
-     call 3  Only if call 2 rejected everything: an independent holistic judgment with examples breaks the tie.
+             (SECOND_LOOK, off by default: also when call 1 passed but its own fields record a policy difference.)
+     call 3  Only if calls 1 and 2 disagree: a holistic judgment with examples breaks the tie (ADJUDICATE, off by
+             default: it sees both reviewers' arguments).
+Design document: ../docs/ARCHITECTURE.md
 
 Environment (see .env.example): JUDGE_LLM_BASE_URL, JUDGE_LLM_API_KEY, JUDGE_LLM_MODEL (claude-haiku-4.5).
-Optional: JUDGE_MAX_TOKENS (default 1600), JUDGE_LLM_TIMEOUT, JUDGE_LLM_MAX_RETRIES,
+Optional: JUDGE_MAX_TOKENS (default 3000), JUDGE_TRACE (path: one JSON line per reply with the decision path), JUDGE_LLM_TIMEOUT, JUDGE_LLM_MAX_RETRIES,
 JUDGE_LLM_CACHE (development only; never set it for the scored runs: it would fake consistency).
 """
 from __future__ import annotations
@@ -31,31 +34,51 @@ import urllib.error
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import baseline_judge as _bj  # noqa: E402  (HTTP helpers and retry policy from the starter kit)
 
-MAX_TOKENS = int(os.environ.get("JUDGE_MAX_TOKENS", "1600"))
+MAX_TOKENS = int(os.environ.get("JUDGE_MAX_TOKENS", "3000"))  # room for long JSON; unused tokens cost nothing
 MAX_EXAMPLES = 8
+
+# ------------------------------------------------------------------------------------------------ recipe settings
+# Generic inference-time settings, none of them criterion-specific. The defaults are the judge's behaviour;
+# ../dev_tools/experiments.py measures other values on temporary copies of this file. Fixed before the freeze.
+NUMBER_RULE_MAX = "verdict"  # strongest mode prepare() may give the code rule: "verdict" or "hint"
+EXAMPLE_STYLE = "single"     # "single": the labelled reply alone; "contrast": its correct original shown next to it
+PREFILL = False              # start the model's JSON answer with "<json>" (Haiku 4.5 supports prefill): no preamble
+THINKING_BUDGET = 0          # > 0: extended thinking on call 1 with this token budget (needs temperature 1)
+SECOND_LOOK = False          # call 1 passes but its own fields show a difference from the policy: call 2 checks it
+ADJUDICATE = False           # call 3 sees both reviewers' arguments instead of judging from scratch
 
 # ----------------------------------------------------------------------------------------------- state set in prepare()
 # Read-only after prepare(); judge() never writes to these.
 CONFIG: dict = {"criterion": "", "policy": "", "examples_text": "", "number_rule": "off", "policy_numbers": frozenset()}
 
 # Diagnostics only (never influence a verdict): calls made, parse failures, model ids the endpoint reported.
-STATS = {"calls": 0, "parse_failures": 0, "rule_fail": 0, "models": set()}
+STATS = {"calls": 0, "parse_failures": 0, "rule_fail": 0, "truncated": 0, "models": set()}
 _lock = threading.Lock()
 _cache: dict | None = None
 unparsed = 0  # read by run_judge.py's end-of-run report
 
 
 # ================================================================================================ LLM client
-def _chat(system: str, user: str) -> str:
-    """One chat completion at temperature 0. Retries on 429/5xx like the baseline client."""
+def _chat(system: str, user: str, prefill: str = "", thinking: int = 0) -> str:
+    """One chat completion at temperature 0. Retries on 429/5xx like the baseline client.
+
+    prefill: the start of the answer, sent as a final assistant message and put back in front of the returned text.
+    thinking: extended-thinking budget in tokens; the API then requires the default temperature, and no prefill."""
     base = os.environ.get("JUDGE_LLM_BASE_URL", "").rstrip("/")
     key = os.environ.get("JUDGE_LLM_API_KEY", "")
     model = os.environ.get("JUDGE_LLM_MODEL", "")
     if not (base and key and model):
         raise _bj.LLMError("set JUDGE_LLM_BASE_URL, JUDGE_LLM_API_KEY and JUDGE_LLM_MODEL (see .env.example)")
     timeout = float(os.environ.get("JUDGE_LLM_TIMEOUT", "90"))
-    payload = {"model": model, "temperature": 0, "max_tokens": MAX_TOKENS,
-               "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+    messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
+    if thinking:
+        prefill = ""
+        payload = {"model": model, "max_tokens": MAX_TOKENS + thinking, "messages": messages,
+                   "thinking": {"type": "enabled", "budget_tokens": thinking}}
+    else:
+        if prefill:
+            messages.append({"role": "assistant", "content": prefill})
+        payload = {"model": model, "temperature": 0, "max_tokens": MAX_TOKENS, "messages": messages}
 
     cache_path = os.environ.get("JUDGE_LLM_CACHE") or None
     ckey = hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
@@ -78,6 +101,10 @@ def _chat(system: str, user: str) -> str:
                 STATS["models"].add(str(body.get("model", "?")))
             if choice.get("finish_reason") == "length":
                 text += "\n<!-- truncated -->"
+                with _lock:
+                    STATS["truncated"] += 1
+            if prefill and not text.lstrip().startswith(prefill):
+                text = prefill + text
             break
         except urllib.error.HTTPError as e:
             if e.code in (401, 403):
@@ -203,13 +230,20 @@ def _pick_examples(dev_pairs: list[dict]) -> list[dict]:
     by_type: dict[str, list[dict]] = {}
     for c in sorted(dev_pairs, key=lambda c: str(c.get("case_id"))):
         by_type.setdefault(str(c.get("edit_type", "?")), []).append(c)
+    # prefer an English example, then the shortest reply: cheap to read and clear to learn from
+    ranked = {t: sorted(cs, key=lambda c: (c.get("lang") != "en", len(c.get("edited", "")))) for t, cs in by_type.items()}
+    chosen: list[dict] = []
+    for rnd in range(max((len(v) for v in ranked.values()), default=0)):
+        # one per type first; more rounds only when there are fewer types than examples (e.g. no edit_type given)
+        chosen += [ranked[t][rnd] for t in sorted(ranked) if rnd < len(ranked[t])]
+        if len(chosen) >= MAX_EXAMPLES:
+            break
     fails, passes = [], []
-    for t in sorted(by_type):
-        cs = by_type[t]
-        # prefer an English example, then the shortest reply: cheap to read and clear to learn from
-        c = sorted(cs, key=lambda c: (c.get("lang") != "en", len(c.get("edited", ""))))[0]
+    for c in chosen:
         item = {"question": c.get("question", ""), "lang": c.get("lang", ""), "reply": c.get("edited", ""),
-                "label": _label(c, "edited").upper(), "note": c.get("edit_note") or ""}
+                "label": _label(c, "edited").upper(), "note": c.get("edit_note") or "",
+                "original": c.get("original") or "", "orig_lang": c.get("orig_lang") or c.get("lang", ""),
+                "orig_label": _label(c, "original").upper()}
         (fails if item["label"] == "FAIL" else passes).append(item)
     out = []
     while (fails or passes) and len(out) < MAX_EXAMPLES:
@@ -220,6 +254,8 @@ def _pick_examples(dev_pairs: list[dict]) -> list[dict]:
 
 
 def _format_examples(examples: list[dict]) -> str:
+    if EXAMPLE_STYLE == "contrast":
+        return _format_contrast(examples)
     parts = []
     for i, e in enumerate(examples, 1):
         why = e["note"]
@@ -231,13 +267,32 @@ def _format_examples(examples: list[dict]) -> str:
     return "\n".join(parts)
 
 
+def _format_contrast(examples: list[dict]) -> str:
+    """Each example as a minimal pair: a reply and a near-identical labelled variant, so the boundary is visible."""
+    parts = []
+    for i, e in enumerate(examples, 1):
+        if not e["original"] or e["original"] == e["reply"]:
+            parts.append(f'<example id="{i}">\n<question>{e["question"]}</question>\n'
+                         f'<reply lang="{e["lang"]}">{e["reply"]}</reply>\n<label>{e["label"]}</label>\n</example>')
+            continue
+        why = f"<why>What differs from reply A: {e['note']}</why>\n" if e["note"] else ""
+        parts.append(f'<example id="{i}">\n<question>{e["question"]}</question>\n'
+                     f'<reply_a lang="{e["orig_lang"]}">{e["original"]}</reply_a>\n<label_a>{e["orig_label"]}</label_a>\n'
+                     f'<reply_b lang="{e["lang"]}">{e["reply"]}</reply_b>\n<label_b>{e["label"]}</label_b>\n'
+                     f"{why}</example>")
+    return "\n".join(parts)
+
+
 def prepare(criterion: str, policy: str, dev_pairs: list[dict]) -> None:
     policy_numbers = frozenset(v for _, v in numbers_in(policy))
+    mode = _validate_number_rule(policy_numbers, dev_pairs)
+    if mode == "verdict" and NUMBER_RULE_MAX == "hint":
+        mode = "hint"
     CONFIG.update(
         criterion=criterion.strip(),
         policy=policy.strip(),
         policy_numbers=policy_numbers,
-        number_rule=_validate_number_rule(policy_numbers, dev_pairs),
+        number_rule=mode,
         examples_text=_format_examples(_pick_examples(dev_pairs)),
     )
     print(f"final_judge: number rule = {CONFIG['number_rule']}, "
@@ -332,55 +387,139 @@ def _rule_overturned(check: dict | None, rule_numbers: list[str]) -> bool:
     """True if call 1 explicitly found every flagged number consistent with or stricter than the policy."""
     if not check:
         return False
+    claims = [c for c in check.get("claims") or [] if isinstance(c, dict)]
     for tok in rule_numbers:
-        ok = False
-        for c in check.get("claims") or []:
-            if isinstance(c, dict) and tok in str(c.get("quote", "")):
-                ok = c.get("number_vs_policy") in ("same", "less_favourable_to_customer") \
-                     and c.get("violates_criterion") is False
-                break
-        if not ok:
+        value = _to_number(tok)
+        carrying = [c for c in claims if value in {v for _, v in numbers_in(str(c.get("quote", "")))}]
+        if not carrying or not all(c.get("number_vs_policy") in ("same", "less_favourable_to_customer")
+                                   and c.get("violates_criterion") is False for c in carrying):
             return False
     return True
+
+
+def _differences(check: dict) -> list[dict]:
+    """Claims call 1 did NOT mark as violating although its own fields record a difference from the policy.
+
+    Symmetric on purpose (looser AND stricter), so nothing assumes which direction the criterion cares about:
+    the verifier decides under the criterion text whether a difference matters."""
+    out = []
+    for c in check.get("claims") or []:
+        if not isinstance(c, dict) or c.get("violates_criterion") is True:
+            continue
+        notes = [f'the policy attaches "{d.get("condition", "")}", which the reply leaves out'
+                 for d in c.get("policy_conditions") or []
+                 if isinstance(d, dict) and str(d.get("status", "")).lower() == "dropped"]
+        cp, cr = c.get("certainty_policy"), c.get("certainty_reply")
+        if isinstance(cp, (int, float)) and isinstance(cr, (int, float)) and cp != cr:
+            notes.append(f"stated {'more' if cr > cp else 'less'} certainly than the policy ({cr} vs {cp}, scale 0-3)")
+        if str(c.get("scope", "")).lower() in ("wider", "narrower"):
+            notes.append(f"scope is {str(c.get('scope')).lower()} than the policy")
+        if c.get("number_vs_policy") in ("more_favourable_to_customer", "less_favourable_to_customer", "not_in_policy"):
+            notes.append(f"number: {c.get('number_vs_policy')}")
+        if notes:
+            out.append({"quote": str(c.get("quote", "")), "reason": "; ".join(notes), "policy_rule": c.get("policy_rule")})
+    return out
+
+
+SECOND_LOOK_INSTRUCTIONS = """A first reviewer compared the reply with the policy and noted the differences listed in \
+<findings>, but did not count them as violations of the criterion. For each one, re-read the whole reply and the \
+policy and decide:
+- "confirmed": under the criterion, this difference makes the reply violate it;
+- "rejected": it does not (the difference does not matter for this criterion, or the reviewer misread the reply, \
+for example the condition is stated elsewhere in other words).
+Keep in mind: leaving out a condition, limit or hedge that the policy attaches, while still stating the entitlement, \
+makes the statement stronger than the policy. Saying less, or being stricter, is a different kind of change. \
+Greeting, filler, sentence order, length, politeness and language matter only if the criterion is about them.
+
+Answer format:
+<json>{"findings": [{"id": 1, "decision": "rejected", "reason": "..."}]}</json>"""
+
+
+def _trace(t: dict, path: str, verdict: str) -> str:
+    """Optional audit log (JUDGE_TRACE): one JSON line per reply. Write-only: never read back, never affects a verdict."""
+    path_file = os.environ.get("JUDGE_TRACE")
+    if path_file:
+        t.update(path=path, verdict=verdict)
+        with _lock, open(path_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(t, ensure_ascii=False) + "\n")
+    return verdict
+
+
+def _ask(t: dict, system: str, user: str, **kw) -> str:
+    t["calls"] += 1
+    return _chat(system, user, **kw)
+
+
+def _listed(findings: list[dict]) -> str:
+    return "\n".join(f'{i}. quote: "{f["quote"]}" | reviewer\'s reason: {f["reason"]}' for i, f in enumerate(findings, 1))
 
 
 # ================================================================================================ judge()
 def judge(question: str, reply: str, lang: str, criterion: str, policy: str) -> str:
     if not CONFIG["criterion"]:  # run without prepare(): still works, without examples or rule
         prepare(criterion, policy, [])
+    t = {"reply": hashlib.sha256(reply.encode("utf-8")).hexdigest()[:12], "lang": lang, "calls": 0}
     rule_numbers = [] if CONFIG["number_rule"] == "off" else unknown_numbers(reply, CONFIG["policy_numbers"])
+    t["rule_numbers"] = rule_numbers
+    prefill = "<json>" if PREFILL else ""
 
     # ---- call 1: structured, claim-by-claim check
     user = _context(question, reply, lang, with_examples=True)
     if rule_numbers:
         user += ("\n\n<code_check>Numbers in the reply that do not appear in the policy: "
                  + ", ".join(rule_numbers) + ". Check them carefully.</code_check>")
-    check = _parse_json(_chat(SYSTEM_CHECK, user + "\n\n" + CHECK_INSTRUCTIONS))
+    check = _parse_json(_ask(t, SYSTEM_CHECK, user + "\n\n" + CHECK_INSTRUCTIONS,
+                             prefill=prefill, thinking=THINKING_BUDGET))
 
     if rule_numbers and CONFIG["number_rule"] == "verdict" and not _rule_overturned(check, rule_numbers):
         with _lock:
             STATS["rule_fail"] += 1
-        return "fail"
+        return _trace(t, "rule", "fail")
 
     if check is None:  # unparseable: let the holistic judgment decide (deterministic fallback)
-        return _holistic(question, reply, lang) or "fail"
+        return _trace(t, "call1_unreadable>holistic", _holistic(t, question, reply, lang) or "fail")
     findings = _findings(check, rule_numbers)
+
     if not findings:
-        return "pass"
+        diffs = _differences(check) if SECOND_LOOK else []
+        if not diffs:
+            return _trace(t, "call1_pass", "pass")
+        # ---- call 2 (second look): call 1 passed, but its own fields record differences from the policy
+        user2 = _context(question, reply, lang, with_examples=False) + f"\n\n<findings>\n{_listed(diffs)}\n</findings>"
+        look = _parse_json(_ask(t, SYSTEM_VERIFY, user2 + "\n\n" + SECOND_LOOK_INSTRUCTIONS, prefill=prefill))
+        reasons = [str(d.get("reason", "")) for d in (look or {}).get("findings") or []
+                   if isinstance(d, dict) and str(d.get("decision", "")).lower() == "confirmed"]
+        if not reasons:
+            return _trace(t, "call1_pass>second_look_agrees", "pass")
+        # call 1 (pass) and call 2 (violation) disagree: call 3 decides
+        dispute = (f"Reviewer A found no violation; it noted these differences but judged them harmless:\n"
+                   f"{_listed(diffs)}\nReviewer B says they violate the criterion: " + " | ".join(reasons))
+        return _trace(t, "second_look_confirms>tiebreak", _holistic(t, question, reply, lang, dispute) or "fail")
 
     # ---- call 2: fresh-context verification of the candidate violations only
-    listed = "\n".join(f'{i}. quote: "{f["quote"]}" | reviewer\'s reason: {f["reason"]}'
-                       for i, f in enumerate(findings, 1))
-    user2 = _context(question, reply, lang, with_examples=False) + f"\n\n<findings>\n{listed}\n</findings>"
-    verify = _parse_json(_chat(SYSTEM_VERIFY, user2 + "\n\n" + VERIFY_INSTRUCTIONS))
-    decisions = [str(d.get("decision", "")).lower() for d in (verify or {}).get("findings") or [] if isinstance(d, dict)]
-    if any(d == "confirmed" for d in decisions):
-        return "fail"
+    user2 = _context(question, reply, lang, with_examples=False) + f"\n\n<findings>\n{_listed(findings)}\n</findings>"
+    verify = _parse_json(_ask(t, SYSTEM_VERIFY, user2 + "\n\n" + VERIFY_INSTRUCTIONS, prefill=prefill))
+    decisions = [d for d in (verify or {}).get("findings") or [] if isinstance(d, dict)]
+    if any(str(d.get("decision", "")).lower() == "confirmed" for d in decisions):
+        return _trace(t, "call1_fail>verify_confirms", "fail")
 
-    # ---- call 3: call 1 and call 2 disagree (or call 2 unreadable): independent holistic tiebreak
-    return _holistic(question, reply, lang) or "fail"
+    # ---- call 3: call 1 and call 2 disagree (or call 2 unreadable): tie-break
+    dispute = (f"Reviewer A says the reply violates the criterion:\n{_listed(findings)}\nReviewer B disagrees: "
+               + (" | ".join(str(d.get("reason", "")) for d in decisions) or "(no readable answer)"))
+    return _trace(t, "verify_rejects>tiebreak", _holistic(t, question, reply, lang, dispute) or "fail")
 
 
-def _holistic(question: str, reply: str, lang: str) -> str | None:
-    user = _context(question, reply, lang, with_examples=True) + "\n\n" + HOLISTIC_INSTRUCTIONS
-    return _parse_verdict(_chat(SYSTEM_HOLISTIC, user))
+ADJUDICATE_INSTRUCTIONS = """Two reviewers disagree about this reply; their arguments are in <dispute>. Check each \
+argument against the reply and the policy yourself: quote the exact words that decide it. Judge only what the \
+criterion asks about; greeting, filler, sentence order, length and language matter only if the criterion is about \
+them. Write at most four short sentences of reasoning in English, then <verdict>PASS</verdict> or \
+<verdict>FAIL</verdict>."""
+
+
+def _holistic(t: dict, question: str, reply: str, lang: str, dispute: str = "") -> str | None:
+    user = _context(question, reply, lang, with_examples=True)
+    if ADJUDICATE and dispute:
+        user += f"\n\n<dispute>\n{dispute}\n</dispute>\n\n" + ADJUDICATE_INSTRUCTIONS
+    else:
+        user += "\n\n" + HOLISTIC_INSTRUCTIONS
+    return _parse_verdict(_ask(t, SYSTEM_HOLISTIC, user))

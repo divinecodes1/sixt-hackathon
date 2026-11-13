@@ -18,3 +18,5 @@ Project_1/preds.jsonl
 Project_4/plans/baseline.csv
 Project_6/starter/predictions.csv
 Project_3/starter_pack/*cache*.json
+Project_2/synthetic/
+Project_2/results/nowcast_*.csv

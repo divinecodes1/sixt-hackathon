@@ -108,6 +108,25 @@ all show up.
   before-and-after numbers on both criteria.
 - **Either** a 1-minute demo video (`submission/demo.mp4`, under 50 MB) **or** up to 5 slides (`submission/slides.pdf`).
 
+## Local UI demo
+
+Run the real frozen judge through the local UI (the key remains server-side and the server binds to localhost):
+
+```bash
+python3 demo/server.py
+# open http://127.0.0.1:8765
+```
+
+For an offline rehearsal that uses the deterministic unit-test model and makes no external calls:
+
+```bash
+python3 demo/server.py --mock
+curl -fsS http://127.0.0.1:8765/api/health
+```
+
+The health endpoint reports whether the model and gateway are configured without exposing their values. The demo
+unsets `JUDGE_LLM_CACHE`, enforces request limits, and returns security headers on every response.
+
 ## Background reading
 - *A Judge Should Know What Changed* (arXiv:2608.24419): judges miss meaning changes, especially over-promising
 - *Reliability without Validity* (arXiv:2606.19544): agreement and consistency can look good while the judge is still wrong

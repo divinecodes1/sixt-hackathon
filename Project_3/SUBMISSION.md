@@ -81,7 +81,7 @@ bash run_dev.sh                                      # dev: 3-fold CV, run twice
 bash run_submission.sh <hidden_c1.jsonl> <CRITERION2.md> <dev_pairs_c2.jsonl> <hidden_c2.jsonl>   # -> submission/
 ```
 Environment variables (names only): `JUDGE_LLM_BASE_URL`, `JUDGE_LLM_API_KEY`, `JUDGE_LLM_MODEL`; optional
-`JUDGE_MAX_TOKENS` (default 1600), `WORKERS` (default 8). Never set `JUDGE_LLM_CACHE` for scored runs.
+`JUDGE_MAX_TOKENS` (default 3000), `WORKERS` (default 8). Never set `JUDGE_LLM_CACHE` for scored runs.
 
 Single run, as the organizers do it:
 ```bash

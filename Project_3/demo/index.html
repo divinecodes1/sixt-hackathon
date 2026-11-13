@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Judge the Judge · Live Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --bg: #F7F8FA; --surface: #FFFFFF; --sunken: #F2F4F7; --ink: #182230; --muted: #667085; --line: #E4E7EC;
+  --accent: #175CD3; --accent-hover: #1849A9; --accent-soft: #EFF4FF; --code: #475467; --code-soft: #F2F4F7;
+  --pass: #067647; --pass-soft: #ECFDF3; --fail: #B42318; --fail-soft: #FEF3F2; --warn: #B54708; --warn-soft: #FFFAEB;
+  --f-display: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --shadow-xs: 0 1px 2px rgb(16 24 40 / .05);
+  --shadow-sm: 0 1px 3px rgb(16 24 40 / .08), 0 1px 2px rgb(16 24 40 / .04);
+  --r: 12px;
+  color-scheme: light;
+}
+* { box-sizing: border-box }
+html, body { margin: 0; height: 100% }
+body { background: var(--bg); color: var(--ink); font: 400 14px/1.55 var(--f-body); display: flex; flex-direction: column; -webkit-font-smoothing: antialiased }
+h1, h2, h3 { font-family: var(--f-display); margin: 0; line-height: 1.25; letter-spacing: -.02em }
+code, .mono { font-family: var(--f-mono); font-size: .9em }
+button { font: inherit; color: inherit; cursor: pointer }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+
+/* ---------- top bar ---------- */
+.top { min-height: 64px; display: flex; align-items: center; gap: 26px; padding: 10px 24px; background: rgb(255 255 255 / .96); border-bottom: 1px solid var(--line); flex-wrap: wrap; box-shadow: var(--shadow-xs); z-index: 10 }
+.brand { display: flex; align-items: center; gap: 11px }
+.brand-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; background: #173B70; color: white; font-size: 11px; font-weight: 700; letter-spacing: .04em }
+.brand-copy { display: grid; gap: 1px }
+.brand h1 { font-size: 1rem; font-weight: 700; letter-spacing: -.01em }
+.brand-copy span { color: var(--muted); font-size: 11.5px }
+.tabs { display: flex; gap: 4px; padding: 0 }
+.tabs button { border: 0; background: none; padding: 8px 12px; border-radius: 7px; font-weight: 500; color: var(--muted) }
+.tabs button:hover { color: var(--ink); background: var(--sunken) }
+.tabs button[aria-selected="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600 }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto }
+.chip { display: inline-flex; align-items: center; gap: 6px; font: 500 11.5px var(--f-body); padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); white-space: nowrap; box-shadow: var(--shadow-xs) }
+.chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted) }
+.chip.ok i { background: var(--pass) } .chip.bad i { background: var(--fail) } .chip.warn i { background: var(--warn) }
+.banner { padding: 8px 18px; font-weight: 500; font-size: 12.5px; text-align: center; border-bottom: 1px solid currentColor }
+.banner.mock { background: var(--warn-soft); color: var(--warn) }
+.banner.nokey { background: var(--fail-soft); color: var(--fail) }
+
+/* ---------- layout ---------- */
+main { flex: 1; min-height: 0; display: flex }
+.view { display: none; flex: 1; min-height: 0 }
+.view.on { display: flex }
+aside { width: 360px; flex: none; border-right: 1px solid var(--line); background: var(--surface); display: flex; flex-direction: column; min-height: 0 }
+.aside-head { padding: 18px; display: grid; gap: 12px; border-bottom: 1px solid var(--line) }
+.aside-intro { display: grid; gap: 2px; padding-bottom: 2px }
+.aside-intro b { font: 700 1.05rem var(--f-display) }
+.aside-intro span { color: var(--muted); font-size: 12.5px }
+label.f { display: grid; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 500 }
+select, input[type=search], input[type=text], textarea { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid #D0D5DD; border-radius: 8px; padding: 8px 10px; width: 100%; box-shadow: var(--shadow-xs) }
+select:hover, input:hover, textarea:hover { border-color: #98A2B3 }
+textarea { resize: vertical; min-height: 110px; line-height: 1.5 }
+.row { display: flex; gap: 8px } .row > * { flex: 1; min-width: 0 }
+.seg { display: flex; background: var(--sunken); border-radius: 9px; padding: 3px; border: 1px solid var(--line) }
+.seg button { flex: 1; border: 0; background: none; padding: 5px; border-radius: 6px; font-size: 13px; color: var(--muted) }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: var(--shadow-xs) }
+.list { overflow-y: auto; flex: 1; min-height: 0 }
+.case { display: grid; gap: 5px; padding: 12px 18px; border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; width: 100% }
+.case:hover { background: #F9FAFB }
+.case[aria-current="true"] { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent) }
+.case .l1 { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--muted) }
+.case .q { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.count { padding: 8px 14px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--line) }
+.quick { display: flex; gap: 6px; flex-wrap: wrap }
+.quick button, .preset { border: 1px solid var(--line); background: var(--surface); color: var(--accent); border-radius: 999px; padding: 5px 9px; font-size: 12px; font-weight: 600 }
+.quick button:hover, .preset:hover { background: var(--accent-soft); border-color: var(--accent) }
+
+.stage { flex: 1; min-width: 0; overflow-y: auto; padding: 28px 30px 56px; display: grid; gap: 18px; align-content: start }
+.stage > * { width: min(100%, 1180px); margin-inline: auto }
+.journey { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px }
+.journey-step { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--muted); font-size: 12.5px; box-shadow: var(--shadow-xs) }
+.journey-step strong { display: grid; place-items: center; flex: none; width: 23px; height: 23px; border-radius: 50%; background: var(--sunken); color: var(--muted); font: 600 12px var(--f-mono) }
+.journey-step.active { border-color: #B2CCFF; background: var(--accent-soft); color: var(--ink) }
+.journey-step.active strong, .journey-step.done strong { background: var(--accent); color: white }
+.eyebrow { color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 4px }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 20px; box-shadow: var(--shadow-sm) }
+.case-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap }
+.case-head h2 { font-size: 1.3rem; margin-right: auto }
+.tag { font: 600 11.5px var(--f-body); padding: 2px 8px; border-radius: 5px; background: var(--sunken); color: var(--muted); white-space: nowrap }
+.tag.harmful { background: var(--fail-soft); color: var(--fail) } .tag.harmless { background: var(--pass-soft); color: var(--pass) }
+.tag.lang { font-family: var(--f-mono); text-transform: uppercase }
+.note { color: var(--muted); font-size: 13px; margin-top: 6px }
+.change-summary { display: flex; gap: 9px; align-items: flex-start; margin-top: 10px; padding: 9px 11px; background: var(--sunken); border-radius: 8px; font-size: 13px }
+.change-summary b { white-space: nowrap }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px }
+.side h3 { font-size: .95rem; display: flex; gap: 8px; align-items: center; margin-bottom: 6px }
+.side .qq { font-size: 13px; color: var(--muted); margin-bottom: 6px }
+.text { background: #FCFCFD; border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; font-size: 14px; min-height: 72px }
+del { background: var(--fail-soft); color: var(--fail); text-decoration-thickness: 1.5px }
+ins { background: var(--code-soft); color: var(--ink); text-decoration: none; border-bottom: 2px solid var(--code) }
+.expect { font-size: 12px; color: var(--muted) }
+
+.run { display: flex; gap: 12px; align-items: center; flex-wrap: wrap }
+.btn { border: 1px solid var(--accent); background: var(--accent); color: #fff; font-weight: 600; padding: 9px 16px; border-radius: 8px; box-shadow: var(--shadow-xs); transition: background .15s ease, border-color .15s ease }
+.btn:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover) }
+.btn:disabled { opacity: .55; cursor: progress }
+.btn.ghost { background: none; color: var(--accent); border: 1px solid var(--line) }
+.hint { color: var(--muted); font-size: 12.5px }
+.run-panel { display: grid; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 15px 17px; box-shadow: var(--shadow-xs) }
+.statusline { min-height: 20px; display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 13px }
+.statusline.running { color: var(--accent); font-weight: 600 }
+.section-head { display: flex; align-items: baseline; gap: 10px; margin-top: 2px }
+.section-head h3 { font-size: 1.08rem }
+.section-head span { color: var(--muted); font-size: 12.5px }
+.next-actions { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 7px }
+
+/* ---------- outcome ---------- */
+.outcome { display: flex; align-items: center; gap: 16px; padding: 16px 18px; border-radius: var(--r); border: 1px solid var(--line); border-left-width: 4px; background: var(--surface); box-shadow: var(--shadow-xs) }
+.outcome b { font: 700 1.15rem var(--f-display) }
+.outcome.good { border-left-color: var(--pass); background: var(--surface) } .outcome.good b { color: var(--pass) }
+.outcome.bad { border-left-color: var(--fail); background: var(--surface) } .outcome.bad b { color: var(--fail) }
+.outcome p { margin: 0; font-size: 13.5px }
+
+/* ---------- trace ---------- */
+.traces { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start }
+.traces.single { grid-template-columns: 1fr }
+.trace { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; box-shadow: var(--shadow-xs) }
+.trace-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line) }
+.trace-head h3 { font-size: 1rem; margin-right: auto }
+.verdict { font: 700 13px var(--f-display); letter-spacing: .06em; padding: 4px 12px; border-radius: 6px }
+.verdict.pass { background: var(--pass-soft); color: var(--pass) } .verdict.fail { background: var(--fail-soft); color: var(--fail) }
+.verdict.err { background: var(--warn-soft); color: var(--warn) }
+.meta { font: 12px var(--f-mono); color: var(--muted) }
+.steps { list-style: none; margin: 0; padding: 6px 0 }
+.step { position: relative; padding: 10px 14px 12px 44px }
+.step::before { content: ""; position: absolute; left: 21px; top: 0; bottom: 0; border-left: 2px solid var(--line) }
+.step:first-child::before { top: 18px } .step:last-child::before { bottom: calc(100% - 18px) }
+.dot { position: absolute; left: 12px; top: 11px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font: 600 10px var(--f-mono); background: var(--accent-soft); color: var(--accent); border: 1px solid #B2CCFF }
+.step.code .dot { background: var(--code-soft); color: var(--code); border-color: #D0D5DD }
+.step.skip { opacity: .5 }
+.step h4 { margin: 0 0 4px; font: 600 14px var(--f-body); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap }
+.step h4 .meta { font-weight: 400 }
+.step p { margin: 2px 0; font-size: 13.5px }
+.nums { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 }
+.num { font: 500 12.5px var(--f-mono); padding: 1px 7px; border-radius: 5px; background: var(--pass-soft); color: var(--pass) }
+.num.out { background: var(--fail-soft); color: var(--fail) }
+.mode { font: 600 11.5px var(--f-mono); padding: 1px 7px; border-radius: 5px; border: 1px solid var(--line) }
+.claims { display: grid; gap: 8px; margin-top: 6px }
+.claim { border: 1px solid var(--line); border-radius: 8px; padding: 10px 11px; display: grid; gap: 5px; background: #FCFCFD }
+.claim.viol { border-color: #FDA29B; background: var(--fail-soft) }
+.claim .quote { font-size: 13.5px }
+.claim .quote::before { content: "“" } .claim .quote::after { content: "”" }
+.claim .pr { font-size: 12.5px; color: var(--muted) }
+.badges { display: flex; flex-wrap: wrap; gap: 5px }
+.b { font: 500 11.5px var(--f-body); padding: 1px 7px; border-radius: 5px; background: var(--surface); border: 1px solid var(--line); white-space: nowrap }
+.b.red { color: var(--fail); border-color: var(--fail) } .b.green { color: var(--pass); border-color: var(--pass) }
+.b.amber { color: var(--warn); border-color: var(--warn) }
+.reason { font-size: 12.5px }
+details.raw { margin-top: 6px } details.raw summary { font-size: 12px; color: var(--muted); cursor: pointer }
+details.raw pre { font: 11.5px/1.45 var(--f-mono); background: var(--sunken); border-radius: 6px; padding: 8px; overflow: auto; max-height: 260px; white-space: pre-wrap; word-break: break-word }
+.err-box { margin: 10px 14px; padding: 10px 12px; border-radius: 8px; background: var(--warn-soft); color: var(--warn); font-size: 13px }
+.empty { display: grid; place-items: center; text-align: center; color: var(--muted); padding: 50px 20px; gap: 6px }
+.empty h3 { color: var(--ink) }
+.spin { width: 16px; height: 16px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: s 1s linear infinite; display: inline-block; vertical-align: -3px }
+@keyframes s { to { transform: rotate(1turn) } }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 3s } }
+
+/* ---------- results + how ---------- */
+.page { flex: 1; overflow-y: auto; padding: 32px 28px 60px }
+.page > .inner { max-width: 1080px; margin: 0 auto; display: grid; gap: 18px }
+.page h2 { font-size: 1.6rem }
+.lede { color: var(--muted); max-width: 70ch; margin: 0 }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden }
+.kpi { background: var(--surface); padding: 17px 18px; display: grid; gap: 3px }
+.kpi b { font: 600 1.8rem var(--f-display); font-variant-numeric: tabular-nums }
+.kpi span { font-size: 12.5px; color: var(--muted) }
+.kpi.tbd b { color: var(--warn); font-size: 1.2rem; padding-block: 6px }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: middle }
+th { font: 600 11.5px var(--f-body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--bg) }
+td.n { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums }
+tr:last-child td { border-bottom: 0 }
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface) }
+.bar { position: relative; height: 8px; background: var(--sunken); border-radius: 4px; min-width: 120px }
+.bar i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: var(--accent) }
+.bar i.base { background: var(--muted); opacity: .45; height: 3px; top: auto }
+.flow { display: grid; gap: 10px }
+.fbox { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 15px 16px; box-shadow: var(--shadow-xs) }
+.fbox .dot { position: static }
+.fbox.code .dot { background: var(--code-soft); color: var(--code); border-color: var(--code) }
+.fbox h3 { font-size: 1.05rem } .fbox p { margin: 3px 0 0; color: var(--muted); font-size: 13.5px }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px }
+.card ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13.5px }
+
+@media (max-width: 980px) {
+  .view.on { flex-direction: column } aside { width: auto; max-height: 45vh; border-right: 0; border-bottom: 1px solid var(--line) }
+  .pair, .traces { grid-template-columns: 1fr } .stage { padding: 16px }
+  .chips { margin-left: 0 }
+}
+@media (max-width: 680px) {
+  .journey { grid-template-columns: 1fr }
+  .journey-step { display: none }
+  .journey-step.active { display: flex }
+  .brand span { display: none }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="brand-mark" aria-hidden="true">DC</span><div class="brand-copy"><h1>Judge the Judge</h1><span>Divinecodes · Evaluation workspace</span></div></div>
+  <nav class="tabs" role="tablist" aria-label="Views">
+    <button role="tab" aria-selected="true" data-view="live">Live judge</button>
+    <button role="tab" aria-selected="false" data-view="results">Results</button>
+    <button role="tab" aria-selected="false" data-view="how">How it works</button>
+  </nav>
+  <div class="chips" id="chips"></div>
+</header>
+<div id="banner"></div>
+
+<main>
+  <!-- ================= LIVE ================= -->
+  <section class="view on" id="v-live" role="tabpanel">
+    <aside>
+      <div class="aside-head">
+        <div class="aside-intro"><b>Try the judge</b><span>Start with an example or test your own reply.</span></div>
+        <label class="f">1 · What should the judge check?
+          <select id="crit"></select></label>
+        <div class="seg" role="group" aria-label="Choose input">
+          <button aria-pressed="true" data-mode="cases">Use an example</button>
+          <button aria-pressed="false" data-mode="custom">Write my own</button>
+        </div>
+        <div class="quick" id="quick" aria-label="Quick examples">
+          <button data-pick="harmful">Clear harmful edit</button>
+          <button data-pick="harmless">Clear harmless edit</button>
+          <button data-pick="random">Surprise me</button>
+        </div>
+        <div id="filters" class="row">
+          <select id="f-type" aria-label="Edit type"><option value="">All edit types</option></select>
+          <select id="f-lang" aria-label="Language"><option value="">All</option></select>
+        </div>
+        <input type="search" id="f-q" placeholder="Search questions and replies" aria-label="Search">
+      </div>
+      <div class="count" id="count"></div>
+      <div class="list" id="list"></div>
+    </aside>
+    <div class="stage" id="stage"></div>
+  </section>
+
+  <!-- ================= RESULTS ================= -->
+  <section class="view" id="v-results" role="tabpanel">
+    <div class="page"><div class="inner" id="results"></div></div>
+  </section>
+
+  <!-- ================= HOW ================= -->
+  <section class="view" id="v-how" role="tabpanel">
+    <div class="page"><div class="inner">
+      <div><h2>One recipe, any criterion</h2>
+        <p class="lede">The judge reads one reply at a time and never sees the pair, the edit type or the label. Code decides what can be
+          proven; the LLM reads language. Calls 2 and 3 run only when they are needed, so most replies cost one call.</p></div>
+      <div class="flow">
+        <div class="fbox code"><span class="dot">P</span><div><h3>prepare() · once per criterion, no LLM</h3>
+          <p>Tests the number rule on the labelled examples: <b>off</b> if it fires on any pass example, <b>verdict</b> if it only fires on fail examples, <b>hint</b> otherwise. Picks up to 8 examples, one per edit type, fail and pass alternating.</p></div></div>
+        <div class="fbox code"><span class="dot">R</span><div><h3>Code rule · numbers not in the policy</h3>
+          <p>Locale-aware number parsing (“1.000,50”, “12,5”). In verdict mode a hit fails the reply unless call 1 finds that exact value the same as or stricter than the policy.</p></div></div>
+        <div class="fbox"><span class="dot">1</span><div><h3>Call 1 · claim-by-claim check (JSON)</h3>
+          <p>Every claim is quoted and matched to its policy rule; every condition the policy attaches is ticked kept / dropped / not applicable; certainty is rated 0–3 for policy and reply; scope and number direction are recorded. The model then decides, per claim, whether it violates the criterion.</p></div></div>
+        <div class="fbox"><span class="dot">2</span><div><h3>Call 2 · fresh-context verifier</h3>
+          <p>Only when call 1 suspects a violation. Confirms or rejects each finding without the examples. Any confirmed finding → FAIL.</p></div></div>
+        <div class="fbox"><span class="dot">3</span><div><h3>Call 3 · tie-break</h3>
+          <p>Only when calls 1 and 2 disagree. A holistic judgment with examples, ending in PASS or FAIL.</p></div></div>
+      </div>
+      <div class="grid2">
+        <div class="card"><h3>Rules kept</h3><ul>
+          <li>One reply per call, no state between calls</li><li>At most 3 LLM calls per reply</li>
+          <li>Nothing criterion-specific in code</li><li><code>claude-haiku-4.5</code>, temperature 0, no response cache</li>
+          <li>Frozen at 16:00; the scored runs use the frozen file</li></ul></div>
+        <div class="card"><h3>What this demo adds</h3><ul>
+          <li>Runs the real <code>final_judge.py</code>, unchanged</li>
+          <li>Records each LLM call for display only</li>
+          <li>Leaves the case's own source reply out of the examples, like cross-validation</li>
+          <li>The API key stays on the local server</li></ul></div>
+      </div>
+      <div class="card"><h3>Scoring</h3>
+        <p class="lede" style="margin-top:6px">A harmful edit is <b>caught</b> when the original passes and the edited reply fails. A harmless edit is <b>kept</b> when both pass.
+          Combined = harmonic mean of macro catch and macro keep, so failing a correct original costs both.</p></div>
+    </div></div>
+  </section>
+</main>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const S = { state: null, cases: [], crit: "c1", mode: "cases", sel: null, runs: {}, busy: false };
+const LANG = ["en", "de", "fr", "es", "it"];
+const pref = { get(k) { try { return localStorage.getItem("jdemo." + k) } catch { return null } },
+               set(k, v) { try { localStorage.setItem("jdemo." + k, v) } catch {} } };
+
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || `Request failed (HTTP ${r.status})`);
+  return data;
+}
+
+const FRIENDLY = {
+  condition_removal: "condition removed", hedge_removal: "promise made stronger", wrong_number: "wrong number",
+  wrong_policy_detail: "wrong policy detail", filler_padding: "harmless filler", polite_opener: "polite opener",
+  padding_removal: "shortened wording", sentence_reorder: "sentences reordered", translation: "translation",
+};
+const friendly = value => FRIENDLY[value] || String(value || "").replaceAll("_", " ");
+const journey = active => `<div class="journey" aria-label="Demo steps">
+  <div class="journey-step ${active > 1 ? "done" : active === 1 ? "active" : ""}"><strong>1</strong><span>Choose a reply</span></div>
+  <div class="journey-step ${active > 2 ? "done" : active === 2 ? "active" : ""}"><strong>2</strong><span>Run the judge</span></div>
+  <div class="journey-step ${active === 3 ? "active" : ""}"><strong>3</strong><span>Understand the decision</span></div>
+</div>`;
+
+/* ---------- tabs ---------- */
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.setAttribute("aria-selected", x === b));
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === "v-" + b.dataset.view));
+  if (b.dataset.view === "results") loadResults();
+}));
+
+/* ---------- state ---------- */
+async function boot() {
+  S.state = await api("/api/state");
+  const st = S.state, set = st.settings;
+  const on = Object.entries(set).filter(([k, v]) => !(k === "NUMBER_RULE_MAX" && v === "verdict") && !(k === "EXAMPLE_STYLE" && v === "single") && v !== false && v !== 0);
+  $("#chips").innerHTML = [
+    `<span class="chip ${st.mock ? "warn" : "ok"}"><i></i>${esc(st.model || "no model")}</span>`,
+    `<span class="chip ${st.key ? "ok" : "bad"}"><i></i>${st.key ? "key on server" : "no key"}</span>`,
+    `<span class="chip ${st.cache ? "bad" : "ok"}"><i></i>${st.cache ? "cache ON" : "no cache"}</span>`,
+    `<span class="chip"><i></i>${on.length ? "switches: " + on.map(([k, v]) => k + "=" + v).join(", ") : "default settings"}</span>`,
+  ].join("");
+  $("#banner").innerHTML = st.mock
+    ? `<div class="banner mock">MOCK MODEL: answers come from the unit tests' fake LLM. They show the UI, not real verdicts.</div>`
+    : st.key ? "" : `<div class="banner nokey">No API key on the server: the code rule runs, LLM calls fail. Put the key in Project_3/.env and restart.</div>`;
+  $("#crit").innerHTML = st.criteria.map(c => `<option value="${c.id}">${esc(c.name)} · ${c.cases} cases</option>`).join("");
+  S.crit = st.criteria.some(c => c.id === pref.get("crit")) ? pref.get("crit") : st.criteria[0].id;
+  $("#crit").value = S.crit;
+  await loadCases();
+}
+$("#crit").addEventListener("change", async e => { S.crit = e.target.value; pref.set("crit", S.crit); S.sel = null; S.runs = {}; await loadCases(); });
+
+async function loadCases() {
+  S.cases = await api("/api/cases?c=" + S.crit);
+  const types = [...new Set(S.cases.map(c => c.edit_type))].sort();
+  $("#f-type").innerHTML = `<option value="">All edit types</option>` + types.map(t => `<option value="${esc(t)}">${esc(friendly(t))}</option>`).join("");
+  $("#f-lang").innerHTML = `<option value="">All</option>` + LANG.map(l => `<option>${l}</option>`).join("");
+  renderList();
+  if (S.mode === "cases") { S.sel = S.sel || S.cases.find(c => c.edit_type === "condition_removal") || S.cases[0]; renderList(); renderStage(); }
+}
+["#f-type", "#f-lang", "#f-q"].forEach(id => $(id).addEventListener("input", renderList));
+
+function expected(c) { return [String(c.original_label).toLowerCase(), String(c.edited_label).toLowerCase()] }
+function kind(c) { const [o, e] = expected(c); return o === "pass" && e === "fail" ? "harmful" : o === "pass" && e === "pass" ? "harmless" : "other" }
+
+function renderList() {
+  const t = $("#f-type").value, l = $("#f-lang").value, q = $("#f-q").value.toLowerCase();
+  const rows = S.cases.filter(c => (!t || c.edit_type === t) && (!l || c.lang === l) &&
+    (!q || (c.question + c.original + c.edited).toLowerCase().includes(q)));
+  $("#count").textContent = `${rows.length} of ${S.cases.length} labelled cases`;
+  $("#list").innerHTML = rows.map(c => `<button class="case" data-id="${esc(c.case_id)}" aria-current="${S.sel && S.sel.case_id === c.case_id}">
+      <span class="l1"><span class="tag ${kind(c)}">${esc(friendly(c.edit_type))}</span><span class="tag lang">${esc(c.lang)}</span><span class="mono">${esc(c.case_id)}</span></span>
+      <span class="q">${esc(c.question)}</span></button>`).join("") || `<div class="empty"><p>No case matches.</p></div>`;
+}
+$("#list").addEventListener("click", e => {
+  const b = e.target.closest(".case"); if (!b) return;
+  S.sel = S.cases.find(c => c.case_id === b.dataset.id); S.runs = {}; renderList(); renderStage();
+});
+function setMode(mode) {
+  S.mode = mode; S.runs = {};
+  document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", x.dataset.mode === mode));
+  $("#filters").style.display = $("#f-q").style.display = $("#list").style.display = $("#count").style.display = S.mode === "cases" ? "" : "none";
+  $("#quick").style.display = S.mode === "cases" ? "" : "none";
+  renderStage();
+}
+document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
+$("#quick").addEventListener("click", e => {
+  const pick = e.target.closest("button")?.dataset.pick; if (!pick) return;
+  const pool = pick === "harmful" ? S.cases.filter(c => kind(c) === "harmful" && c.edit_type === "condition_removal")
+    : pick === "harmless" ? S.cases.filter(c => kind(c) === "harmless" && c.edit_type === "filler_padding") : S.cases;
+  S.sel = pool[Math.floor(Math.random() * pool.length)] || S.cases[0]; S.runs = {}; renderList(); renderStage();
+});
+
+/* ---------- word diff (LCS on words) ---------- */
+function diff(a, b) {
+  const A = a.split(/(\s+)/), B = b.split(/(\s+)/), n = A.length, m = B.length;
+  if (n * m > 400000) return [esc(a), esc(b)];
+  const L = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = A[i] === B[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  let i = 0, j = 0, x = "", y = "";
+  while (i < n && j < m) {
+    if (A[i] === B[j]) { x += esc(A[i]); y += esc(B[j]); i++; j++ }
+    else if (L[i + 1][j] >= L[i][j + 1]) { x += /^\s+$/.test(A[i]) ? A[i] : `<del>${esc(A[i])}</del>`; i++ }
+    else { y += /^\s+$/.test(B[j]) ? B[j] : `<ins>${esc(B[j])}</ins>`; j++ }
+  }
+  while (i < n) { x += /^\s+$/.test(A[i]) ? A[i] : `<del>${esc(A[i])}</del>`; i++ }
+  while (j < m) { y += /^\s+$/.test(B[j]) ? B[j] : `<ins>${esc(B[j])}</ins>`; j++ }
+  return [x.replace(/<\/del>(\s*)<del>/g, "$1"), y.replace(/<\/ins>(\s*)<ins>/g, "$1")];
+}
+
+/* ---------- stage ---------- */
+function renderStage() {
+  if (S.mode === "custom") return renderCustom();
+  const c = S.sel;
+  if (!c) { $("#stage").innerHTML = `<div class="empty"><h3>Pick a case</h3><p>Each labelled case is a correct reply and an edited copy.</p></div>`; return }
+  const [o, e] = expected(c), sameLang = c.lang === c.orig_lang;
+  const [dx, dy] = sameLang ? diff(c.original, c.edited) : [esc(c.original), esc(c.edited)];
+  $("#stage").innerHTML = `
+    ${journey(S.runs.o && S.runs.e ? 3 : 2)}
+    <div class="card">
+      <div class="eyebrow">Labelled example</div>
+      <div class="case-head"><h2>${esc(c.question)}</h2>
+        <span class="tag ${kind(c)}">${kind(c)} · ${esc(friendly(c.edit_type))}</span><span class="tag lang">${esc(c.orig_lang)}${sameLang ? "" : " → " + esc(c.lang)}</span></div>
+      <div class="change-summary"><b>What changed?</b><span>${esc(c.edit_note || friendly(c.edit_type))}. This is labelled <b>${kind(c)}</b>, so the judge should ${kind(c) === "harmful" ? "pass the original and fail the edit" : "pass both replies"}.</span></div>
+      <div class="pair">
+        <div class="side"><h3>Original <span class="expect">expected ${o.toUpperCase()}</span></h3>${sameLang ? "" : `<div class="qq">${esc(c.question_original)}</div>`}<div class="text">${dx}</div></div>
+        <div class="side"><h3>Edited <span class="expect">expected ${e.toUpperCase()}</span></h3>${sameLang ? "" : `<div class="qq">${esc(c.question)}</div>`}<div class="text">${dy}</div></div>
+      </div>
+    </div>
+    <div class="run-panel"><div class="run"><button class="btn" id="go">▶ Run judge on both replies</button>
+      <span class="hint">The judge sees each reply separately—never the pair or label.</span></div>
+      <div class="statusline" id="live-status" aria-live="polite">Ready. This usually takes one to three model calls per reply.</div></div>
+    <div id="outcome"></div>
+    <div class="section-head"><h3>Why did the judge decide this?</h3><span>Follow the rule and model calls below.</span></div>
+    <div class="traces" id="traces">${trace("Original", S.runs.o)}${trace("Edited", S.runs.e)}</div>`;
+  $("#go").addEventListener("click", runPair);
+  renderOutcome();
+}
+
+function renderCustom() {
+  const d = S.custom || { q: "Can I extend my rental?", lang: "en", r: "You can always extend your rental in the app, at no extra cost." };
+  $("#stage").innerHTML = `
+    ${journey(S.runs.x ? 3 : 1)}
+    <div class="card" style="display:grid;gap:10px">
+      <div><div class="eyebrow">Your turn</div><h2>Write a customer-service reply</h2><p class="note">Use a preset, edit the text, then see exactly how the judge reasons.</p></div>
+      <div class="quick" id="presets"><button class="preset" data-preset="safe">Safe extension</button><button class="preset" data-preset="guarantee">Over-promise</button><button class="preset" data-preset="number">Wrong number</button></div>
+      <div class="row"><label class="f" style="flex:4">Customer question<input type="text" id="cq" value="${esc(d.q)}"></label>
+        <label class="f" style="flex:1">Language<select id="cl">${LANG.map(l => `<option ${l === d.lang ? "selected" : ""}>${l}</option>`).join("")}</select></label></div>
+      <label class="f">Reply to judge<textarea id="cr">${esc(d.r)}</textarea></label>
+      <details class="raw"><summary>Policy (the reference the judge compares against)</summary><pre>${esc(S.state.policy)}</pre></details>
+    </div>
+    <div class="run-panel"><div class="run"><button class="btn" id="go">▶ Judge my reply</button><span class="hint">Your text stays on this local demo server.</span></div>
+      <div class="statusline" id="live-status" aria-live="polite">Ready.</div></div>
+    <div class="section-head"><h3>Decision explanation</h3><span>The code rule appears first, followed by model calls.</span></div>
+    <div class="traces single" id="traces">${trace("Your reply", S.runs.x)}</div>`;
+  const presets = {
+    safe: ["Can I extend my rental?", "You can usually extend your rental in the app or by phone if the car is not reserved for another customer."],
+    guarantee: ["Can I extend my rental?", "You can always extend your rental in the app, guaranteed."],
+    number: ["How late can I return the car?", "You have a 60-minute grace period after the agreed return time."],
+  };
+  $("#presets").addEventListener("click", e => { const p = presets[e.target.closest("button")?.dataset.preset]; if (!p) return; $("#cq").value = p[0]; $("#cr").value = p[1]; });
+  $("#go").addEventListener("click", async () => {
+    S.custom = { q: $("#cq").value, lang: $("#cl").value, r: $("#cr").value };
+    await runOne("x", { c: S.crit, question: S.custom.q, reply: S.custom.r, lang: S.custom.lang }, "Your reply");
+  });
+}
+
+async function runOne(key, body, title) {
+  S.runs[key] = { loading: true }; setStatus(`Judging ${title.toLowerCase()}…`, true); paint();
+  try { S.runs[key] = await api("/api/judge", body) } catch (err) { S.runs[key] = { error: String(err), calls: [] } }
+  setStatus(S.runs[key].error ? `${title} stopped: ${S.runs[key].error}` : `${title} complete: ${String(S.runs[key].verdict).toUpperCase()}.`);
+  if (S.mode === "custom" && !S.runs[key].error) showJourney(3);
+  paint();
+  function paint() {
+    const box = $("#traces"); if (!box) return;
+    const keys = S.mode === "custom" ? [["x", "Your reply"]] : [["o", "Original"], ["e", "Edited"]];
+    box.innerHTML = keys.map(([k, t]) => trace(t, S.runs[k])).join(""); renderOutcome();
+  }
+}
+function setStatus(message, running = false) { const el = $("#live-status"); if (el) { el.className = `statusline${running ? " running" : ""}`; el.innerHTML = `${running ? '<span class="spin"></span>' : ''}${esc(message)}`; } }
+function showJourney(step) { document.querySelectorAll(".journey-step").forEach((el, i) => { el.classList.toggle("done", i + 1 < step); el.classList.toggle("active", i + 1 === step); }); }
+async function runPair() {
+  const c = S.sel, btn = $("#go"); btn.disabled = true;
+  S.runs = {};
+  await runOne("o", { c: S.crit, question: c.question_original, reply: c.original, lang: c.orig_lang, source_id: c.source_id }, "Original reply");
+  await runOne("e", { c: S.crit, question: c.question, reply: c.edited, lang: c.lang, source_id: c.source_id }, "Edited reply");
+  btn.disabled = false;
+  setStatus("Both replies are complete. Read the outcome, then inspect the evidence below.");
+  showJourney(3);
+}
+
+function renderOutcome() {
+  const box = $("#outcome"); if (!box || S.mode !== "cases") return;
+  const o = S.runs.o, e = S.runs.e;
+  if (!o || !e || o.loading || e.loading || !o.verdict || !e.verdict) { box.innerHTML = ""; return }
+  const k = kind(S.sel), got = `${o.verdict.toUpperCase()} → ${e.verdict.toUpperCase()}`;
+  let ok, head, text;
+  if (k === "harmful") { ok = o.verdict === "pass" && e.verdict === "fail"; head = ok ? "Caught" : o.verdict === "fail" ? "Missed: original failed" : "Missed";
+    text = ok ? "The correct original passed and the harmful edit failed: this case counts as caught." : "A harmful edit counts only when the original passes and the edited reply fails."; }
+  else if (k === "harmless") { ok = o.verdict === "pass" && e.verdict === "pass"; head = ok ? "Kept" : "False fail";
+    text = ok ? "Both replies passed: the harmless edit was ignored, as it should be." : "A harmless edit counts only when both replies pass."; }
+  else { const [xo, xe] = expected(S.sel); ok = o.verdict === xo && e.verdict === xe; head = ok ? "As labelled" : "Differs from label"; text = `Expected ${xo.toUpperCase()} → ${xe.toUpperCase()}.`; }
+  const calls = (o.calls || []).length + (e.calls || []).length;
+  showJourney(3);
+  box.innerHTML = `<div class="outcome ${ok ? "good" : "bad"}"><b>${ok ? "✓" : "!"} ${head}</b><p>${text}<br><span class="meta">verdicts ${got} · ${calls} LLM calls · ${((o.ms + e.ms) / 1000).toFixed(1)} s</span>
+    <span class="next-actions"><button class="preset" id="next-case">Try another example</button><button class="preset" id="write-own">Write my own reply</button></span></p></div>`;
+  $("#next-case")?.addEventListener("click", () => { S.sel = S.cases[Math.floor(Math.random() * S.cases.length)]; S.runs = {}; renderList(); renderStage(); });
+  $("#write-own")?.addEventListener("click", () => { const b = document.querySelector('.seg button[data-mode="custom"]'); b.click(); });
+}
+
+/* ---------- trace rendering ---------- */
+const CALLS = { check: ["1", "Call 1 · claim-by-claim check"], verify: ["2", "Call 2 · verify findings"], second_look: ["2", "Call 2 · second look"],
+  holistic: ["3", "Call 3 · tie-break"], adjudicate: ["3", "Call 3 · adjudicate the dispute"], other: ["?", "LLM call"] };
+const PATHS = { rule: "The code rule decided: a number not in the policy, not cleared by call 1.",
+  call1_pass: "Call 1 found no violation.", "call1_fail>verify_confirms": "Call 1 flagged a violation and the verifier confirmed it.",
+  "verify_rejects>tiebreak": "Call 1 flagged, the verifier rejected: call 3 broke the tie.",
+  "call1_unreadable>holistic": "Call 1 was unreadable: the holistic call decided.",
+  "call1_pass>second_look_agrees": "Call 1 passed; the second look agreed.",
+  "second_look_confirms>tiebreak": "Call 1 passed, the second look disagreed: call 3 broke the tie." };
+
+function trace(title, r) {
+  if (!r) return `<div class="trace"><div class="trace-head"><h3>${title}</h3><span class="meta">not run yet</span></div>
+    <div class="empty" style="padding:28px"><p>Press the button to run the judge.</p></div></div>`;
+  if (r.loading) return `<div class="trace"><div class="trace-head"><h3>${title}</h3><span class="spin" aria-label="judging"></span></div>
+    <div class="empty" style="padding:28px"><p>Judging… calls run one after another.</p></div></div>`;
+  const v = r.verdict ? `<span class="verdict ${r.verdict}">${r.verdict.toUpperCase()}</span>` : `<span class="verdict err">NO VERDICT</span>`;
+  const steps = [ruleStep(r.rule)].concat((r.calls || []).map(callStep));
+  return `<div class="trace"><div class="trace-head"><h3>${title}</h3><span class="meta">${(r.calls || []).length}/3 calls · ${(r.ms / 1000).toFixed(1)} s</span>${v}</div>
+    ${r.error ? `<div class="err-box"><b>Stopped:</b> ${esc(r.error)}<br>An outage is never turned into a verdict.</div>` : ""}
+    <ol class="steps">${steps.join("")}</ol>
+    ${r.path ? `<div style="padding:0 14px 12px" class="hint"><b>Path:</b> <code>${esc(r.path)}</code>. ${esc(PATHS[r.path] || "")}${r.examples != null ? ` · ${r.examples} examples${r.excluded_source ? ", own source excluded" : ""}` : ""}</div>` : ""}</div>`;
+}
+
+function ruleStep(rule) {
+  if (!rule) return "";
+  const nums = rule.numbers.length ? `<div class="nums">${rule.numbers.map(n => `<span class="num ${n.in_policy ? "" : "out"}" title="parsed as ${n.value}">${esc(n.tok)}${n.in_policy ? "" : " · not in policy"}</span>`).join("")}</div>` : "";
+  const what = rule.mode === "off" ? "Rule switched off for this criterion by prepare() (it fires on a pass example)."
+    : rule.unknown.length ? (rule.mode === "verdict" ? `Unknown number: the reply fails unless call 1 clears ${rule.unknown.map(esc).join(", ")}.` : `Shown to call 1 as a hint: ${rule.unknown.map(esc).join(", ")}.`)
+    : rule.numbers.length ? "Every number appears in the policy." : "No digits in the reply.";
+  return `<li class="step code"><span class="dot">R</span><h4>Code rule · numbers <span class="mode">${esc(rule.mode)}</span><span class="meta">0 LLM calls</span></h4>${nums}<p>${what}</p></li>`;
+}
+
+function callStep(c) {
+  const [n, name] = CALLS[c.role] || CALLS.other;
+  let body = "";
+  if (c.role === "check") body = claims(c.json);
+  else if (c.role === "verify" || c.role === "second_look") body = findings(c.json);
+  else body = holistic(c);
+  return `<li class="step"><span class="dot">${n}</span><h4>${name}<span class="meta">${(c.ms / 1000).toFixed(1)} s</span></h4>${body}
+    <details class="raw"><summary>Raw answer</summary><pre>${esc(c.text)}</pre></details></li>`;
+}
+
+function claims(j) {
+  if (!j) return `<p>Unreadable JSON.</p>`;
+  const cs = (j.claims || []).filter(x => x && typeof x === "object");
+  if (!cs.length) return `<p>No claims listed. Model verdict: ${esc(j.verdict || "?")}</p>`;
+  return `<div class="claims">${cs.map(c => {
+    const cond = (c.policy_conditions || []).filter(d => d && typeof d === "object").map(d => {
+      const s = String(d.status || "").toLowerCase();
+      return `<span class="b ${s === "dropped" ? "red" : s === "kept" ? "green" : ""}" title="${esc(d.condition)}">${s || "?"}: ${esc(String(d.condition || "").slice(0, 48))}</span>`; }).join("");
+    const cp = c.certainty_policy, cr = c.certainty_reply;
+    const cert = Number.isFinite(cp) && Number.isFinite(cr) ? `<span class="b ${cr > cp ? "red" : cr < cp ? "amber" : ""}">certainty ${cp} → ${cr}</span>` : "";
+    const scope = c.scope && c.scope !== "same" && c.scope !== "n/a" ? `<span class="b ${c.scope === "wider" ? "red" : "amber"}">scope ${esc(c.scope)}</span>` : "";
+    const nv = c.number_vs_policy && c.number_vs_policy !== "no_number" ? `<span class="b ${c.number_vs_policy === "same" ? "green" : c.number_vs_policy === "less_favourable_to_customer" ? "amber" : "red"}">number: ${esc(c.number_vs_policy.replaceAll("_", " "))}</span>` : "";
+    return `<div class="claim ${c.violates_criterion === true ? "viol" : ""}">
+      <div class="quote">${esc(c.quote)}</div>
+      ${c.gloss_en && c.gloss_en !== c.quote ? `<div class="pr">EN: ${esc(c.gloss_en)}</div>` : ""}
+      ${c.policy_rule ? `<div class="pr">Policy: ${esc(c.policy_rule)}</div>` : `<div class="pr">Policy: no matching rule</div>`}
+      <div class="badges">${nv}${cert}${scope}${cond}</div>
+      <div class="reason"><b style="color:var(${c.violates_criterion === true ? "--fail" : "--pass"})">${c.violates_criterion === true ? "Violates" : "OK"}</b> · ${esc(c.reason || "")}</div></div>`; }).join("")}</div>`;
+}
+function findings(j) {
+  if (!j) return `<p>Unreadable answer: treated as “not confirmed”.</p>`;
+  const fs = (j.findings || []).filter(x => x && typeof x === "object");
+  return fs.map(f => { const d = String(f.decision || "").toLowerCase();
+    return `<p><span class="b ${d === "confirmed" ? "red" : "green"}">#${esc(f.id)} ${esc(d || "?")}</span> ${esc(f.reason || "")}</p>`; }).join("") || `<p>No decisions returned.</p>`;
+}
+function holistic(c) {
+  const text = String(c.text || "").replace(/<verdict>[\s\S]*?<\/verdict>/gi, "").trim();
+  return `<p>${esc(text.slice(0, 700))}</p>${c.verdict ? `<p><span class="verdict ${c.verdict.toLowerCase()}">${c.verdict}</span></p>` : "<p>Unreadable verdict: counts as FAIL.</p>"}`;
+}
+
+/* ---------- results ---------- */
+async function loadResults() {
+  const box = $("#results"); box.innerHTML = `<p class="hint"><span class="spin"></span> Reading results…</p>`;
+  const r = await api("/api/results"), b = r.baseline;
+  const latest = r.reports.filter(x => !/baseline/.test(x.file)).sort((x, y) => y.mtime - x.mtime);
+  const pick = latest.find(x => /dev_pairs_report/.test(x.file)) || latest[0];
+  const k = (v, l) => v == null ? `<div class="kpi tbd"><b>TBD</b><span>${l}</span></div>` : `<div class="kpi"><b>${v.toFixed(3)}</b><span>${l}</span></div>`;
+  const types = b ? Object.keys(b.types) : [];
+  box.innerHTML = `
+    <div><h2>Measured results</h2><p class="lede">Every number on this page is read from a <code>score.py</code> report in the repo. Nothing is estimated:
+      until a run exists, the value says TBD.</p></div>
+    <div><h3 style="margin-bottom:8px">Baseline (organizers' judge, dev)</h3><div class="kpis">${k(b && b.combined, "combined")}${k(b && b.catch, "macro catch")}${k(b && b.keep, "macro keep")}${k(b && b.kappa, "kappa")}</div></div>
+    <div><h3 style="margin-bottom:8px">Ours${pick ? ` · <span class="meta">${esc(pick.file)}</span>` : ""}</h3><div class="kpis">${k(pick && pick.combined, "combined")}${k(pick && pick.catch, "macro catch")}${k(pick && pick.keep, "macro keep")}${k(pick && pick.same, "same verdict, 2 runs")}</div>
+      ${pick ? "" : `<p class="hint" style="margin-top:8px">No measured run yet. With the key: <code>bash Project_3/run_dev.sh</code>, then reload this tab.</p>`}</div>
+    ${b ? `<div class="tbl"><table><thead><tr><th>Edit type</th><th>n</th><th>measure</th><th class="n">baseline</th><th class="n">ours</th><th>ours (bar) vs baseline (line)</th></tr></thead><tbody>
+      ${types.map(t => { const bt = b.types[t], m = bt.catch != null ? "catch" : "keep", ov = pick && pick.types[t] ? pick.types[t][m] : null, bv = bt[m];
+        return `<tr><td>${esc(t)}</td><td class="n">${bt.n}</td><td>${m}</td><td class="n">${bv.toFixed(3)}</td><td class="n">${ov == null ? "TBD" : ov.toFixed(3)}</td>
+          <td><div class="bar">${ov == null ? "" : `<i style="width:${ov * 100}%"></i>`}<i class="base" style="width:${bv * 100}%"></i></div></td></tr>` }).join("")}
+    </tbody></table></div>` : ""}
+    <div><h3 style="margin-bottom:8px">All reports found</h3>${r.reports.length ? `<div class="tbl"><table><thead><tr><th>Report</th><th class="n">combined</th><th class="n">catch</th><th class="n">keep</th><th class="n">same verdict</th></tr></thead><tbody>
+      ${r.reports.map(x => `<tr><td class="mono">${esc(x.file)}</td><td class="n">${x.combined.toFixed(3)}</td><td class="n">${x.catch?.toFixed(3) ?? "–"}</td><td class="n">${x.keep?.toFixed(3) ?? "–"}</td><td class="n">${x.same?.toFixed(3) ?? "–"}</td></tr>`).join("")}</tbody></table></div>`
+      : `<p class="hint">No report files in <code>Project_3/results/</code> yet.</p>`}</div>
+    <div><h3 style="margin-bottom:8px">Setting experiments</h3>${r.experiments.length ? `<div class="tbl"><table><thead><tr><th>time</th><th>variant</th><th>set</th><th class="n">combined</th><th class="n">catch</th><th class="n">keep</th><th class="n">kappa</th><th class="n">same</th><th class="n">calls/reply</th></tr></thead><tbody>
+      ${r.experiments.map(x => `<tr><td>${esc(x[0])}</td><td><code>${esc(x[1])}</code></td><td>${esc(x[2])}</td>${x.slice(3, 9).map(v => `<td class="n">${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`
+      : `<p class="hint">No experiments yet: <code>python3 ../dev_tools/experiments.py --variants base R_hint S_second_look J_adjudicate --stress</code></p>`}</div>`;
+}
+
+boot().catch(err => { $("#stage").innerHTML = `<div class="empty"><h3>Server not reachable</h3><p>Start it with <code>python3 Project_3/demo/server.py</code>.</p><p class="hint">${esc(err)}</p></div>` });
+</script>
+</body>
+</html>

@@ -8,6 +8,7 @@ from __future__ import annotations
 import http.server
 import json
 import os
+from pathlib import Path
 import re
 import threading
 import unittest
@@ -16,24 +17,28 @@ import final_judge as fj
 import run_judge
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-POLICY = open(os.path.join(HERE, "policy.md"), encoding="utf-8").read()
-CRITERION = open(os.path.join(HERE, "JUDGE1_CRITERION.md"), encoding="utf-8").read()
+POLICY = Path(HERE, "policy.md").read_text(encoding="utf-8")
+CRITERION = Path(HERE, "JUDGE1_CRITERION.md").read_text(encoding="utf-8")
 DEV = run_judge._jsonl(os.path.join(HERE, "dev_pairs.jsonl"))
 
 
 class MockLLM(http.server.BaseHTTPRequestHandler):
     """Call 1 flags replies containing 'always'; call 2 confirms if the quote has 'always'; call 3 says PASS."""
     log: list[str] = []
+    bodies: list[dict] = []
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        MockLLM.bodies.append(body)
         system, user = body["messages"][0]["content"], body["messages"][1]["content"]
         reply = re.findall(r'<reply lang="[^"]*">(.*?)</reply>', user, flags=re.S)[-1]
         if system == fj.SYSTEM_CHECK:
             kind = "check"
             bad = "always" in reply
-            out = "<json>" + json.dumps({"claims": [{"quote": reply[:40], "number_vs_policy": "no_number",
-                                                     "violates_criterion": bad, "reason": "test"}],
+            claim = {"quote": reply[:40], "number_vs_policy": "no_number", "violates_criterion": bad, "reason": "test"}
+            if "dropcond" in reply:  # call 1 records a dropped condition but does not call it a violation
+                claim["policy_conditions"] = [{"condition": "if not reserved", "status": "dropped"}]
+            out = "<json>" + json.dumps({"claims": [claim],
                                          "verdict": "FAIL" if bad else "PASS"}) + "</json>"
         elif system == fj.SYSTEM_VERIFY:
             kind = "verify"
@@ -43,6 +48,9 @@ class MockLLM(http.server.BaseHTTPRequestHandler):
             kind = "holistic"
             out = "Fine.\n<verdict>PASS</verdict>"
         MockLLM.log.append(kind)
+        last = body["messages"][-1]
+        if last["role"] == "assistant" and out.startswith(last["content"]):
+            out = out[len(last["content"]):]  # like the real API: only the continuation of a prefill comes back
         data = json.dumps({"model": "mock-haiku", "choices": [{"message": {"content": out},
                                                                 "finish_reason": "stop"}]}).encode()
         self.send_response(200)
@@ -110,6 +118,7 @@ class Pipeline(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.server.shutdown()
+        cls.server.server_close()
         for k, v in cls.env.items():
             if v is None:
                 os.environ.pop(k, None)
@@ -142,6 +151,103 @@ class Pipeline(unittest.TestCase):
         replies = {(c["orig_lang"], c["question_original"], c["original"]) for c in fast} | \
                   {(c["lang"], c["question"], c["edited"]) for c in fast}
         self.assertLessEqual(len(MockLLM.log), 3 * len(replies))
+
+
+class Settings(Pipeline):
+    """The recipe settings change only what they claim to change; defaults keep the measured behaviour."""
+    def setUp(self):
+        self.saved = {k: getattr(fj, k) for k in ("PREFILL", "THINKING_BUDGET", "EXAMPLE_STYLE", "NUMBER_RULE_MAX",
+                                                   "SECOND_LOOK", "ADJUDICATE")}
+        MockLLM.bodies.clear()
+
+    def tearDown(self):
+        for k, v in self.saved.items():
+            setattr(fj, k, v)
+        fj.prepare(CRITERION, POLICY, DEV)
+
+    def test_defaults_unchanged(self):
+        self.assertEqual(self.saved, {"PREFILL": False, "THINKING_BUDGET": 0, "EXAMPLE_STYLE": "single",
+                                      "NUMBER_RULE_MAX": "verdict", "SECOND_LOOK": False, "ADJUDICATE": False})
+        self.assertEqual(self.calls_for("You can extend dropcond at the counter."), ("pass", ["check"]))
+        MockLLM.bodies.clear()
+        self.calls_for("You can usually extend your rental.")
+        body = MockLLM.bodies[0]
+        self.assertEqual((body["temperature"], body["messages"][-1]["role"]), (0, "user"))
+        self.assertNotIn("thinking", body)
+
+    def test_prefill_sent_and_restored(self):
+        fj.PREFILL = True
+        self.assertEqual(self.calls_for("You can always extend at the counter."), ("fail", ["check", "verify"]))
+        self.assertEqual([b["messages"][-1] for b in MockLLM.bodies], [{"role": "assistant", "content": "<json>"}] * 2)
+
+    def test_thinking_payload(self):
+        fj.THINKING_BUDGET = 1024
+        self.assertEqual(self.calls_for("You can usually extend your rental."), ("pass", ["check"]))
+        body = MockLLM.bodies[0]
+        self.assertEqual(body["thinking"], {"type": "enabled", "budget_tokens": 1024})
+        self.assertNotIn("temperature", body)
+        self.assertEqual(body["max_tokens"], fj.MAX_TOKENS + 1024)
+        self.assertEqual(body["messages"][-1]["role"], "user")
+
+    def test_contrast_examples(self):
+        fj.EXAMPLE_STYLE = "contrast"
+        fj.prepare(CRITERION, POLICY, DEV)
+        text = fj.CONFIG["examples_text"]
+        self.assertIn("<reply_a", text)
+        self.assertIn("<label_b>FAIL</label_b>", text)
+        self.assertEqual(self.calls_for("You can usually extend your rental."), ("pass", ["check"]))
+
+    def test_number_rule_cap(self):
+        fj.NUMBER_RULE_MAX = "hint"
+        fj.prepare(CRITERION, POLICY, DEV)
+        self.assertEqual(fj.CONFIG["number_rule"], "hint")
+        verdict, calls = self.calls_for("You can return the car up to 40 minutes late.")
+        self.assertEqual(calls, ["check"])
+        self.assertIn("<code_check>", MockLLM.bodies[0]["messages"][1]["content"])
+
+
+class ReviewFixes(Settings):
+    """Fixes from the staff review: value-based overturn, example fill, second look, adjudication, trace."""
+    def test_overturn_matches_value_not_substring(self):
+        claim = {"quote": "a fee of 190 euros", "number_vs_policy": "same", "violates_criterion": False}
+        self.assertFalse(fj._rule_overturned({"claims": [claim]}, ["19"]))
+        self.assertTrue(fj._rule_overturned({"claims": [claim]}, ["190"]))
+
+    def test_examples_fill_without_edit_type(self):
+        pairs = [{k: v for k, v in c.items() if k != "edit_type"} for c in DEV]
+        self.assertEqual(len(fj._pick_examples(pairs)), min(fj.MAX_EXAMPLES, len(pairs)))
+
+    def test_second_look_rejects(self):
+        fj.SECOND_LOOK = True
+        self.assertEqual(self.calls_for("You can extend dropcond in the app."), ("pass", ["check", "verify"]))
+        self.assertIn("<findings>", MockLLM.bodies[1]["messages"][1]["content"])
+
+    def test_second_look_confirms_goes_to_tiebreak(self):
+        fj.SECOND_LOOK = True
+        self.assertEqual(self.calls_for("You can extend dropcond at the counter."),
+                         ("pass", ["check", "verify", "holistic"]))
+
+    def test_adjudicate_sends_dispute(self):
+        fj.ADJUDICATE = True
+        self.calls_for("You can always extend in the app.")
+        self.assertIn("<dispute>", MockLLM.bodies[-1]["messages"][1]["content"])
+        fj.ADJUDICATE = False
+        self.calls_for("You can always extend in the app.")
+        self.assertNotIn("<dispute>", MockLLM.bodies[-1]["messages"][1]["content"])
+
+    def test_trace_written_only_when_set(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "trace.jsonl")
+            os.environ["JUDGE_TRACE"] = path
+            try:
+                self.calls_for("You can always extend in the app.")
+            finally:
+                os.environ.pop("JUDGE_TRACE")
+            with open(path, encoding="utf-8") as f:
+                row = json.load(f)
+            self.assertEqual((row["path"], row["calls"], row["verdict"]), ("verify_rejects>tiebreak", 3, "pass"))
+            self.assertNotIn("always", json.dumps(row))  # reply text is hashed, not logged
 
 
 if __name__ == "__main__":
