@@ -65,8 +65,10 @@ class MockLLM(http.server.BaseHTTPRequestHandler):
                                          "verdict": "FAIL" if bad else "PASS"}) + "</json>"
         elif system == fj.SYSTEM_VERIFY:
             kind = "verify"
+            words = "words that are not in the reply at all" if "fakequote" in reply else reply[:25]
             out = "<json>" + json.dumps({"findings": [{"id": 1, "decision": "confirmed" if "counter" in reply
-                                                       else "rejected"}]}) + "</json>"
+                                                       else "rejected", "reply_words": words,
+                                                       "situation": "a customer at a branch where it is not possible"}]}) + "</json>"
         elif system == fj.SYSTEM_VERIFY_NEUTRAL:
             kind = "verify"
             out = "<json>" + json.dumps({"findings": [{"id": 1, "decision": "violation" if "counter" in reply
@@ -185,7 +187,8 @@ class Settings(Pipeline):
     def setUp(self):
         self.saved = {k: getattr(fj, k) for k in ("PREFILL", "THINKING_BUDGET", "EXAMPLE_STYLE", "NUMBER_RULE_MAX",
                                                    "SECOND_LOOK", "ADJUDICATE", "CONDITION_EVIDENCE", "CLAUSE_IDS",
-                                                   "HEDGE_FROM_QUOTE", "VERIFY_DEANCHOR", "VERIFY_EXAMPLES")}
+                                                   "HEDGE_FROM_QUOTE", "VERIFY_DEANCHOR", "VERIFY_EXAMPLES",
+                                                   "VERIFY_WITNESS", "VERIFY_SCOPED")}
         MockLLM.bodies.clear()
 
     def tearDown(self):
@@ -197,8 +200,10 @@ class Settings(Pipeline):
         self.assertEqual(self.saved, {"PREFILL": False, "THINKING_BUDGET": 0, "EXAMPLE_STYLE": "single",
                                       "NUMBER_RULE_MAX": "verdict", "SECOND_LOOK": False, "ADJUDICATE": False,
                                       "CONDITION_EVIDENCE": False, "CLAUSE_IDS": False, "HEDGE_FROM_QUOTE": False,
-                                      "VERIFY_DEANCHOR": False, "VERIFY_EXAMPLES": False})
+                                      "VERIFY_DEANCHOR": False, "VERIFY_EXAMPLES": False,
+                                      "VERIFY_WITNESS": False, "VERIFY_SCOPED": False})
         self.assertEqual(fj._check_instructions(), fj.CHECK_INSTRUCTIONS)
+        self.assertEqual(fj._verify_instructions(), fj.VERIFY_INSTRUCTIONS)
         self.assertEqual(self.calls_for("You can extend dropcond at the counter."), ("pass", ["check"]))
         MockLLM.bodies.clear()
         self.calls_for("You can usually extend your rental.")
@@ -213,6 +218,27 @@ class Settings(Pipeline):
         MockLLM.bodies.clear()
         self.assertEqual(self.calls_for("You can always extend at the counter."), ("fail", ["check", "verify"]))
         self.assertIn("<examples>", MockLLM.bodies[1]["messages"][1]["content"])
+
+    def test_verify_witness_switch(self):
+        self.assertEqual(self.calls_for("You can always extend fakequote at the counter."), ("fail", ["check", "verify"]))
+        self.assertNotIn("reply_words", MockLLM.bodies[1]["messages"][1]["content"])  # default prompt unchanged
+        fj.VERIFY_WITNESS = True
+        MockLLM.bodies.clear()
+        self.assertEqual(self.calls_for("You can always extend at the counter."), ("fail", ["check", "verify"]))
+        self.assertIn("reply_words", MockLLM.bodies[1]["messages"][1]["content"])
+        # a confirm whose quoted words are not in the reply is treated as a rejection: call 3 decides (mock: PASS)
+        self.assertEqual(self.calls_for("You can always extend fakequote at the counter."),
+                         ("pass", ["check", "verify", "holistic"]))
+
+    def test_verify_scoped_switch(self):
+        self.assertEqual(self.calls_for("You can always extend at the counter."), ("fail", ["check", "verify"]))
+        self.assertNotIn(fj.VERIFY_SCOPED_NOTE, MockLLM.bodies[1]["messages"][1]["content"])  # default unchanged
+        fj.VERIFY_SCOPED = True
+        MockLLM.bodies.clear()
+        self.assertEqual(self.calls_for("You can always extend at the counter."), ("fail", ["check", "verify"]))
+        content = MockLLM.bodies[1]["messages"][1]["content"]
+        self.assertIn(fj.VERIFY_SCOPED_NOTE, content)
+        self.assertTrue(content.rstrip().endswith("</json>"))  # answer format still last
 
     def test_trace_reasons_opt_in(self):
         import tempfile

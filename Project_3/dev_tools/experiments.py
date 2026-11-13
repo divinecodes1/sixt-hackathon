@@ -45,6 +45,10 @@ VARIANTS = {
     "H_hedge": ({"HEDGE_FROM_QUOTE": "True"}, "certainty from the original words; quantities to scope; gloss last"),
     "V_deanchor": ({"VERIFY_DEANCHOR": "True"}, "call 2 sees where to look, not the first reviewer's conclusion"),
     "X_verify_examples": ({"VERIFY_EXAMPLES": "True"}, "call 2 sees the labelled examples: fewer false confirms on good replies"),
+    "W_witness": ({"VERIFY_WITNESS": "True"}, "call 2 confirms only with the reply's exact words + a concrete case: "
+                  "fewer false confirms on correct originals"),
+    "WX": ({"VERIFY_WITNESS": "True", "VERIFY_EXAMPLES": "True"}, "witness + labelled examples in call 2"),
+    "Q_scoped_verify": ({"VERIFY_SCOPED": "True"}, "call 2: limitation stated anywhere counts; condition matters only for the promise it limits"),
     "CKHV": ({"CONDITION_EVIDENCE": "True", "CLAUSE_IDS": "True", "HEDGE_FROM_QUOTE": "True",
               "VERIFY_DEANCHOR": "True"}, "all four evidence switches"),
 }

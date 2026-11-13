@@ -54,6 +54,8 @@ CLAUSE_IDS = False           # policy split into numbered clauses (no LLM); call
 HEDGE_FROM_QUOTE = False     # certainty rated from the original words (hedge words copied), quantities go to scope
 VERIFY_DEANCHOR = False      # call 2 gets only where to look (quote, policy text), not the first reviewer's conclusion
 VERIFY_EXAMPLES = False      # call 2 also sees the labelled examples (calibration against false confirms on good replies)
+VERIFY_SCOPED = False        # call 2: a limitation stated anywhere counts; a condition matters only for the promise it limits
+VERIFY_WITNESS = False       # call 2 confirms only with the reply's exact words + a concrete case; code checks the quote
 
 # ----------------------------------------------------------------------------------------------- state set in prepare()
 # Read-only after prepare(); judge() never writes to these.
@@ -631,6 +633,44 @@ Answer format:
 <json>{"findings": [{"id": 1, "policy_quote": "...", "decision": "no_violation", "reason": "..."}]}</json>"""
 
 
+VERIFY_WITNESS_INSTRUCTIONS = """Another reviewer says the reply violates the criterion at the points listed in \
+<findings>. That reviewer raises many false alarms on correct replies, so check each finding yourself. Re-read the \
+whole reply and the policy and decide:
+- "confirmed" only if you can do both: copy into "reply_words" the exact words of the reply (in its own language) \
+that violate the criterion, and describe in "situation" one concrete case, consistent with the policy, in which a \
+reader who trusts exactly those words would be misled about something the criterion cares about;
+- "rejected" otherwise: for example the point is stated elsewhere in the reply in other words, the reply's own \
+wording ("try", "often", "most", "can", "may" or similar) already leaves the same room as the policy, the policy \
+detail belongs to a topic the reply does not make a statement about, or the difference does not matter for this \
+criterion.
+Leaving out a condition, limit or hedge that the policy attaches to a statement the reply DOES make changes its \
+meaning; leaving out policy details about things the reply does not talk about does not. Greeting, filler, sentence \
+order, length, politeness and language matter only if the criterion is about them.
+
+Answer format:
+<json>{"findings": [{"id": 1, "decision": "rejected", "reply_words": "", "situation": "", "reason": "..."}]}</json>"""
+
+
+def _witnessed(d, reply: str) -> bool:
+    """VERIFY_WITNESS: a confirm counts only with words that are really in the reply and a stated concrete case."""
+    return (_confirmed(d) and quote_found(str(d.get("reply_words", "")), reply)
+            and len(str(d.get("situation", "")).strip()) >= 10)
+
+
+VERIFY_SCOPED_NOTE = """Before you confirm a dropped condition, check two things. (1) Is the same limitation \
+expressed anywhere in the reply, in any words or language (for example "we will try", "subject to", "often", \
+"some branches", or a hedge on that same promise)? Then it is stated, not dropped. (2) Does the condition limit the \
+specific thing this sentence promises? A sentence that only states an amount, price or fact does not drop conditions \
+that govern a different step or a different promise; those count only where the reply makes that other promise."""
+
+
+def _verify_instructions() -> str:
+    """VERIFY_INSTRUCTIONS with the enabled switches applied (all off: the text is unchanged)."""
+    if not VERIFY_SCOPED:
+        return VERIFY_INSTRUCTIONS
+    return _sub(VERIFY_INSTRUCTIONS, "\n\nAnswer format:", "\n" + VERIFY_SCOPED_NOTE + "\n\nAnswer format:")
+
+
 def _confirmed(d) -> bool:
     return isinstance(d, dict) and str(d.get("decision", "")).strip().lower() in ("confirmed", "violation")
 
@@ -683,7 +723,9 @@ def judge(question: str, reply: str, lang: str, criterion: str, policy: str) -> 
     if VERIFY_DEANCHOR:
         system2, listed2, instr2 = SYSTEM_VERIFY_NEUTRAL, _listed_neutral(findings), VERIFY_NEUTRAL_INSTRUCTIONS
     else:
-        system2, listed2, instr2 = SYSTEM_VERIFY, _listed(findings), VERIFY_INSTRUCTIONS
+        system2, listed2, instr2 = SYSTEM_VERIFY, _listed(findings), _verify_instructions()
+        if VERIFY_WITNESS:
+            instr2 = VERIFY_WITNESS_INSTRUCTIONS
     user2 = _context(question, reply, lang, with_examples=VERIFY_EXAMPLES) + f"\n\n<findings>\n{listed2}\n</findings>"
     verify = _parse_json(_ask(t, system2, user2 + "\n\n" + instr2, prefill=prefill))
     decisions = [d for d in (verify or {}).get("findings") or [] if isinstance(d, dict)]
@@ -692,6 +734,9 @@ def judge(question: str, reply: str, lang: str, criterion: str, policy: str) -> 
         t["verify"] = [{"decision": str(d.get("decision", "")), "reason": str(d.get("reason", ""))[:300]}
                        for d in decisions]
     call1 = [f for f in findings if f["source"] == "call1"]
+    if VERIFY_WITNESS and not VERIFY_DEANCHOR:  # unproven confirms count as rejections: call 3 decides
+        decisions = [d if _witnessed(d, reply) or not _confirmed(d) else dict(d, decision="rejected_unwitnessed")
+                     for d in decisions]
     if any(_confirmed(d) for d in decisions):
         return _trace(t, "call1_fail>verify_confirms" if call1 else "code_flags>verify_confirms", "fail")
 

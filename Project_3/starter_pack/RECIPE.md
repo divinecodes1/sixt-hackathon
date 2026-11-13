@@ -64,8 +64,8 @@ The LLM keeps everything else: conditions, hedges, scope, policy details, and th
    8 (more rounds per type when there are fewer types, e.g. no `edit_type` given). The construction note (what was changed) is shown as the rationale. Temperature 0 everywhere. Reasoning in
    English with quotes in the original language. At most 3 calls per reply; no state between calls.
 
-- Check: catch goes up on dev without keep going down. **Measured: catch goes up (0.592 → 0.700–0.750), keep goes
-  down (0.847 → 0.744–0.758).** The false fails are the open problem (Step 4).
+- Check: catch goes up on dev without keep going down. **Measured (3 runs): catch goes up (0.592 → 0.700–0.750), keep
+  goes down (0.847 → 0.739–0.758).** The false fails are the open problem (Step 4).
 
 **Operational safeguards (no effect on verdicts).** Newer Anthropic API versions reject `temperature` with HTTP 400; the judge then resends that request without it (counted in `STATS["temperature_dropped"]`, reported by `crossval.py`; `JUDGE_LLM_OMIT_TEMPERATURE=1` skips the rejected attempt), and `dev_tools/probe_gateway.py` tests this separately from the key. HTTP 408 and 529 (overloaded) are retried. `run_submission.sh` raises the retry budget to 10 so one
 rate-limited reply cannot abort a scored run; `JUDGE_TRACE=<file>` writes one JSON line per reply (decision path,
@@ -83,12 +83,19 @@ come from the source replies being scored. Run twice for consistency: `bash run_
 | Baseline + number rule (offline) | 0.697 | 0.592 | 0.847 | 0.531 | n/a |
 | Ours, claude-haiku-4.5, 3-fold CV, run A | 0.754 | 0.750 | 0.758 | 0.623 | 0.974 |
 | Ours, same code, run B | 0.721 | 0.700 | 0.744 | 0.575 | 0.974 |
+| Ours, same code, run C (12:11) | 0.731 | 0.723 | 0.739 | 0.601 | 1.000 |
 
-Per language and per edit type: `../results/exp_base_dev_dev_pairs_report.txt` (run A) and
-`../results/dev_pairs_report.txt` (run B). Condition_removal catch rises from 0.067 to 0.633–0.667, hedge_removal from
+Per language and per edit type: `../results/exp_base_dev_dev_pairs_report.txt` (run A), `../results/experiments.md`
+(run B, summary row only) and `../results/dev_pairs_report.txt` (run C). Condition_removal catch rises from 0.067 to 0.633–0.667, hedge_removal from
 0.500 to 0.600–0.700. Correct originals pass only 0.765–0.805 (baseline 0.858), so every harmless type loses keep.
 The trace (`JUDGE_TRACE`) shows the path: nearly all false fails on pass-labelled replies are call-1 alarms that call 2
 confirmed. The two runs of identical code differ by 0.033 combined: a setting has to win in both repeats.
+
+**Diagnosis (run C, `diagnose.py` + trace with reasons).** 9 of the 45 distinct correct originals fail, and each one
+sinks every pair built on it (catch and keep). Costliest types: filler_padding (47% wrong), sentence_reorder (37%),
+condition_removal (33%). The false fails share one pattern: call 1 marks a policy condition as dropped although the
+reply hedges elsewhere ("we will try to reserve one", "often") or the condition governs something the claim does not
+promise (deposit card rules on a sentence that only states the amount), and call 2 confirms it.
 
 Settings screened so far (`../results/experiments.md`, 30-case fast subset, base 0.716): `S_second_look` 0.724,
 `C_evidence` 0.700, `H_hedge` 0.700, `V_deanchor` 0.680. None clears the +0.02 bar, so all stay off.

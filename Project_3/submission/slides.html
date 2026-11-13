@@ -1,0 +1,115 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Judge the Judge · Divinecodes</title>
+<style>
+@page { size: 13.333in 7.5in; margin: 0; }
+body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; }
+section { width: 13.333in; height: 7.5in; box-sizing: border-box; padding: 0.55in 0.8in; position: relative;
+          break-after: page; page-break-after: always; overflow: hidden; }
+section:last-child { break-after: auto; page-break-after: auto; }
+h1 { font-size: 34pt; margin: 0 0 0.2in; } h2 { font-size: 20pt; margin: 0 0 0.1in; color: #555; font-weight: normal; }
+p, li { font-size: 18pt; line-height: 1.35; } li { margin-bottom: 6px; }
+.accent { color: #ff5f00; } .kicker { font-size: 13pt; letter-spacing: 2px; color: #ff5f00; font-weight: bold; }
+.bubble { border-left: 6px solid #9a9a9a; padding: 8px 16px; margin: 10px 0; font-size: 17pt; background: #f6f6f6; }
+.bubble.bad { border-color: #ff5f00; } .strike { text-decoration: line-through; color: #ff5f00; }
+.foot { position: absolute; bottom: 0.35in; left: 0.8in; right: 0.8in; font-size: 12pt; color: #777;
+        border-top: 1px solid #ddd; padding-top: 6px; }
+.big { font-size: 54pt; font-weight: bold; color: #ff5f00; }
+table { border-collapse: collapse; font-size: 13pt; white-space: nowrap; } td, th { padding: 4px 7px; border-bottom: 1px solid #ddd; text-align: left; }
+th { color: #555; font-weight: normal; } tr.pending td { color: #999; font-style: italic; }
+.cols { display: flex; gap: 0.4in; align-items: flex-start; }
+</style></head><body>
+
+<section>
+<div class="kicker">PROJECT 3 · JUDGE THE JUDGE</div>
+<h1>AI judges wave through replies that <span class="accent">promise too much</span></h1>
+<p>Customer: “Can I keep the car a few days longer?”</p>
+<div class="bubble">A: You can usually extend your rental in the app or by phone,
+<b>as long as the car is not reserved for another customer.</b></div>
+<div class="bubble bad">B: You can usually extend your rental in the app or by phone. <span class="strike">[condition dropped]</span></div>
+<p>The starting judge passes both. B commits SIXT to something the policy does not guarantee, and the judge
+catches only <b>7%</b> of dropped conditions on dev. A release gate built on it lets these replies ship.</p>
+<div class="foot">Team Divinecodes · Project 3 · github.com/divinecodes1/sixt-hackathon · all data synthetic (starter pack)</div>
+</section>
+
+<section>
+<div class="kicker">INSIGHT</div>
+<h1>A judge that reads one reply cannot see what is missing.<br><span class="accent">So we make the absence explicit.</span></h1>
+<p>For every claim, call 1 lists the conditions and hedges the <b>policy</b> attaches to it and marks each one
+<i>kept</i>, <i>dropped</i> or <i>not applicable</i>. A dropped condition becomes a visible field instead of a gap.</p>
+<div class="cols"><div><div class="big">0.067 → 0.667 / 0.633</div>
+<p>dropped-condition catch rate, baseline → ours (dev, grouped 3-fold CV, two runs)</p></div></div>
+<p>The rest is generic: certainty on a 0–3 scale (“usually” vs “always”), scope (some vs all branches), and numbers
+checked in code. Nothing about the criterion is hard-coded; examples and rule mode come from the labelled pairs.</p>
+<div class="foot">Numbers from score.py reports: starter_pack/baseline_report.txt, results/*_report.txt</div>
+</section>
+
+<section>
+<div class="kicker">METHOD</div>
+<h1>Code for facts, the LLM for meaning, <span class="accent">code for the verdict</span></h1>
+<svg viewBox="0 0 1150 250" width="1150" height="250" font-family="Arial" role="img">
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+<path d="M0,0 L10,5 L0,10 z" fill="#1a1a1a"/></marker></defs>
+<g font-size="17" text-anchor="middle">
+<rect x="0" y="70" width="190" height="100" rx="10" fill="#fff" stroke="#9a9a9a" stroke-width="2"/>
+<text x="95" y="105" font-weight="bold">prepare()</text><text x="95" y="130">examples + rule mode</text>
+<text x="95" y="152">from labelled pairs</text>
+<rect x="240" y="70" width="190" height="100" rx="10" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+<text x="335" y="105" font-weight="bold">Number rule</text><text x="335" y="130">code, 0 calls</text>
+<text x="335" y="152">self-validated</text>
+<rect x="480" y="70" width="210" height="100" rx="10" fill="#ff5f00"/>
+<text x="585" y="100" font-weight="bold" fill="#fff">Call 1</text>
+<text x="585" y="125" fill="#fff">claim by claim:</text><text x="585" y="147" fill="#fff">conditions kept /</text>
+<text x="585" y="167" fill="#fff">dropped (JSON)</text>
+<rect x="740" y="70" width="180" height="100" rx="10" fill="#ff5f00" opacity="0.85"/>
+<text x="830" y="105" font-weight="bold" fill="#fff">Call 2</text><text x="830" y="130" fill="#fff">verify suspected</text>
+<text x="830" y="152" fill="#fff">fails only</text>
+<rect x="970" y="70" width="180" height="100" rx="10" fill="#ff5f00" opacity="0.65"/>
+<text x="1060" y="105" font-weight="bold" fill="#fff">Call 3</text><text x="1060" y="130" fill="#fff">tie-break only</text>
+<text x="1060" y="152" fill="#fff">if 1 and 2 disagree</text>
+</g>
+<g stroke="#1a1a1a" stroke-width="2" marker-end="url(#a)">
+<line x1="190" y1="120" x2="236" y2="120"/><line x1="430" y1="120" x2="476" y2="120"/>
+<line x1="690" y1="120" x2="736" y2="120"/><line x1="920" y1="120" x2="966" y2="120"/></g>
+<g font-size="16" fill="#1a1a1a" text-anchor="middle">
+<text x="335" y="205">unknown number → FAIL</text><text x="585" y="205">no finding → PASS (1 call)</text>
+<text x="830" y="205">confirmed → FAIL</text><text x="1060" y="205">verdict decided</text></g>
+<text x="575" y="30" font-size="18" text-anchor="middle" fill="#1a1a1a">verdict computed in code · one reply per call ·
+no state · ≤ 3 calls · claude-haiku-4.5, temperature 0</text>
+</svg>
+<ul>
+<li><b>Self-validating rule:</b> a number not in the policy fails the reply, only if <code>prepare()</code> sees it never fire on a pass example of the current criterion; otherwise hint or off.</li>
+<li><b>Verify only suspected fails</b> in a fresh context; a third call only when calls 1 and 2 disagree. 1.73 calls per reply on average.</li>
+<li>Same code for the surprise criterion: only <code>--criterion</code> and <code>--dev</code> change.</li>
+</ul>
+<div class="foot">starter_pack/final_judge.py · recipe: starter_pack/RECIPE.md</div>
+</section>
+
+<section>
+<div class="kicker">RESULTS · DEV, GROUPED CROSS-VALIDATION, claude-haiku-4.5</div>
+<h1>More bad replies caught; good replies still cost us</h1>
+<div class="cols"><div><svg viewBox="0 0 560 330" width="560" height="330" role="img" font-family="Arial"><line x1="40" y1="284" x2="560" y2="284" stroke="#ccc"/><rect x="55.0" y="107.0" width="41.8" height="177.0" fill="#9a9a9a"/><text x="75.9" y="101.0" font-size="15" text-anchor="middle" fill="#1a1a1a">0.70</text><rect x="102.8" y="92.5" width="41.8" height="191.5" fill="#ff5f00"/><text x="123.7" y="86.5" font-size="15" text-anchor="middle" fill="#1a1a1a">0.75</text><rect x="150.6" y="100.9" width="41.8" height="183.1" fill="#ffa366"/><text x="171.4" y="94.9" font-size="15" text-anchor="middle" fill="#1a1a1a">0.72</text><text x="126.7" y="314" font-size="18" text-anchor="middle" fill="#1a1a1a">combined</text><rect x="228.3" y="133.6" width="41.8" height="150.4" fill="#9a9a9a"/><text x="249.2" y="127.6" font-size="15" text-anchor="middle" fill="#1a1a1a">0.59</text><rect x="276.1" y="93.5" width="41.8" height="190.5" fill="#ff5f00"/><text x="297.0" y="87.5" font-size="15" text-anchor="middle" fill="#1a1a1a">0.75</text><rect x="323.9" y="106.2" width="41.8" height="177.8" fill="#ffa366"/><text x="344.8" y="100.2" font-size="15" text-anchor="middle" fill="#1a1a1a">0.70</text><text x="300.0" y="314" font-size="18" text-anchor="middle" fill="#1a1a1a">macro catch</text><rect x="401.7" y="68.9" width="41.8" height="215.1" fill="#9a9a9a"/><text x="422.6" y="62.9" font-size="15" text-anchor="middle" fill="#1a1a1a">0.85</text><rect x="449.4" y="91.5" width="41.8" height="192.5" fill="#ff5f00"/><text x="470.3" y="85.5" font-size="15" text-anchor="middle" fill="#1a1a1a">0.76</text><rect x="497.2" y="95.0" width="41.8" height="189.0" fill="#ffa366"/><text x="518.1" y="89.0" font-size="15" text-anchor="middle" fill="#1a1a1a">0.74</text><text x="473.3" y="314" font-size="18" text-anchor="middle" fill="#1a1a1a">macro keep</text><rect x="40" y="2" width="14" height="14" fill="#9a9a9a"/><text x="60" y="14" font-size="15" fill="#1a1a1a">Baseline</text><rect x="138.0" y="2" width="14" height="14" fill="#ff5f00"/><text x="158.0" y="14" font-size="15" fill="#1a1a1a">Ours, run A</text><rect x="261.5" y="2" width="14" height="14" fill="#ffa366"/><text x="281.5" y="14" font-size="15" fill="#1a1a1a">Ours, run B</text></svg></div>
+<div style="flex:1"><table><tr><th>crit.</th><th>judge</th><th>combined</th><th>catch</th><th>keep</th><th>kappa</th><th>repeat</th></tr><tr><td>1</td><td>Baseline</td><td>0.697</td><td>0.592</td><td>0.847</td><td>0.531</td><td>n/a</td></tr><tr><td>1</td><td>Ours, run A</td><td>0.754</td><td>0.750</td><td>0.758</td><td>0.623</td><td>0.974</td></tr><tr><td>1</td><td>Ours, run B</td><td>0.721</td><td>0.700</td><td>0.744</td><td>0.575</td><td>0.974</td></tr><tr class="pending"><td>2</td><td colspan=6>runs on the new criterion at 14:30, code unchanged</td></tr></table>
+<p style="font-size:13pt"><b>What did not work:</b> keep fell below the baseline: the judge fails some correct replies
+(correct original passed: 0.805 / 0.765 vs baseline 0.858), and each failed original costs every
+pair built from it. Evidence-quoting variants scored lower on subsets. Identical runs differ by up to
+0.033 combined, so a change ships only if it wins in both repeats. “repeat” = same verdict on two runs.</p></div></div>
+<div class="foot">Sources: starter_pack/baseline_report.txt, results/exp_base_dev_dev_pairs_report.txt, results/dev_pairs_report.txt</div>
+</section>
+
+<section>
+<div class="kicker">FOR SIXT</div>
+<h1>A release gate for chatbot changes, <span class="accent">with the reason attached</span></h1>
+<ul>
+<li>Run every candidate chatbot version against the policy before release; a reply that drops a condition or raises
+certainty is blocked.</li>
+<li>Each fail carries the quoted reply words and the policy clause, so a reviewer decides in seconds.</li>
+<li>The recipe takes any new criterion plus a few labelled examples, with no code change (shown live on the surprise criterion).</li>
+</ul>
+<h2>Next steps</h2>
+<ul>
+<li>Cut false fails on correct replies: call 2 must quote the violating words and name a concrete case (switch <code>VERIFY_WITNESS</code>, ready to measure).</li>
+<li>Retrieve the closest labelled examples per reply instead of a fixed set.</li>
+<li>Measure transfer on edit types not in dev (leave-one-edit-type-out).</li>
+</ul>
+<div class="foot">Team Divinecodes · github.com/divinecodes1/sixt-hackathon</div>
+</section>
+</body></html>

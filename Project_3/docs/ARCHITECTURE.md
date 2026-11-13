@@ -1,8 +1,8 @@
 # LLM architecture design: `final_judge.py`
 
 Team Divinecodes, SIXT Hackathon 2026, Project 3 "Judge the Judge". Status: implemented, unit-tested with a mock
-model (71 tests), measured on `claude-haiku-4.5` on dev (13 Nov: combined 0.754 and 0.721 in two runs of the same code,
-consistency 0.974; `starter_pack/RECIPE.md` Step 4). This document
+model (71 tests), measured on `claude-haiku-4.5` on dev (13 Nov: combined 0.754, 0.721 and 0.731 in three runs of the same code,
+consistency 0.974–1.000; `starter_pack/RECIPE.md` Step 4). This document
 describes the code as it is; where it states a number, the number comes from `score.py` or a test run in this repo.
 
 ## 1. Objective and constraints

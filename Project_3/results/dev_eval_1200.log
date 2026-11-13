@@ -1,0 +1,63 @@
+fold 1/3: 72 cases scored, 154 example cases
+final_judge: number rule = verdict, 8 examples
+  judged 25/75 replies
+  judged 50/75 replies
+  judged 75/75 replies
+fold 2/3: 77 cases scored, 149 example cases
+final_judge: number rule = verdict, 8 examples
+  judged 25/80 replies
+  judged 50/80 replies
+  judged 75/80 replies
+  judged 80/80 replies
+fold 3/3: 77 cases scored, 149 example cases
+final_judge: number rule = verdict, 8 examples
+  judged 25/80 replies
+  judged 50/80 replies
+  judged 75/80 replies
+  judged 80/80 replies
+LLM calls 412, parse failures 0, rule fails 27, models reported by the endpoint: ['claude-haiku-4.5']
+wrote 226 verdict rows to /home/divine/Documents/sixt-hackathon/Project_3/results/dev_pairs_cv_run1.csv
+fold 1/3: 72 cases scored, 154 example cases
+final_judge: number rule = verdict, 8 examples
+  judged 25/75 replies
+  judged 50/75 replies
+  judged 75/75 replies
+fold 2/3: 77 cases scored, 149 example cases
+final_judge: number rule = verdict, 8 examples
+  judged 25/80 replies
+  judged 50/80 replies
+  judged 75/80 replies
+  judged 80/80 replies
+fold 3/3: 77 cases scored, 149 example cases
+final_judge: number rule = verdict, 8 examples
+  judged 25/80 replies
+  judged 50/80 replies
+  judged 75/80 replies
+  judged 80/80 replies
+LLM calls 412, parse failures 0, rule fails 27, models reported by the endpoint: ['claude-haiku-4.5']
+wrote 226 verdict rows to /home/divine/Documents/sixt-hackathon/Project_3/results/dev_pairs_cv_run2.csv
+cases: 226
+COMBINED (the score)       0.731   (baseline 0.697, delta +0.034)
+macro catch                0.723   (baseline 0.592, delta +0.131)
+macro keep                 0.739   (baseline 0.847, delta -0.108)
+kappa vs construction      0.601   (baseline 0.531, delta +0.070)
+consistency (2 runs)       same verdict 1.000, kappa 1.000  (n=235 replies)
+micro: catch 0.718  keep 0.707  raw catch 0.918  raw stability 0.828  original pass 0.792
+
+per edit type              n   catch   keep  raw_stab
+  condition_removal         30  0.667    n/a    n/a
+  filler_padding            15    n/a  0.533  0.733
+  hedge_removal             20  0.700    n/a    n/a
+  padding_removal            5    n/a  1.000  1.000
+  polite_opener             30    n/a  0.833  0.967
+  sentence_reorder          30    n/a  0.633  0.733
+  translation               36    n/a  0.694  0.806
+  wrong_number              35  0.686    n/a    n/a
+  wrong_policy_detail       25  0.840    n/a    n/a
+
+per lang            catch   keep  combined
+  de                   0.682  0.680  0.681
+  en                   0.773  0.750  0.761
+  es                   0.818  0.840  0.829
+  fr                   0.591  0.640  0.614
+  it                   0.727  0.640  0.681

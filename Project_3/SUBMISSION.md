@@ -1,6 +1,6 @@
 # Submission: Project 3, team Divinecodes
 
-> **Status (13 Nov, 12:15):** dev numbers on `claude-haiku-4.5` are in (two full 3-fold CV runs, `score.py`).
+> **Status (13 Nov, 12:15):** dev numbers on `claude-haiku-4.5` are in (three full 3-fold CV runs, `score.py`).
 > Still open: the surprise criterion (14:30) and the hidden-set runs (16:00). Every number here comes from
 > `score.py`; nothing is estimated.
 
@@ -43,7 +43,7 @@ The model is fixed by the rules: `claude-haiku-4.5`. What we compare is the reci
 | Model / recipe | Open-weight or closed | Where it runs | combined / catch / keep (dev, CV) | Calls and time per reply | Chosen? |
 | --- | --- | --- | --- | --- | --- |
 | baseline_judge.py, claude-haiku-4.5 | closed | API (SIXT endpoint) | 0.697 / 0.592 / 0.847 | 1 call | no, it is the reference |
-| final_judge.py, claude-haiku-4.5 | closed | API (SIXT endpoint) | 0.754 / 0.750 / 0.758 (run A); 0.721 / 0.700 / 0.744 (run B) | 1–3 calls, 1.73 on average | yes, the required model |
+| final_judge.py, claude-haiku-4.5 | closed | API (SIXT endpoint) | 0.754 / 0.750 / 0.758 (run A); 0.721 / 0.700 / 0.744 (run B); 0.731 / 0.723 / 0.739 (run C) | 1–3 calls, 1.73 on average | yes, the required model |
 
 ## Results
 Measured on `dev_pairs.jsonl` with grouped cross-validation (`run_dev.sh`); the hidden-set scores come from the
@@ -55,6 +55,7 @@ organizers.
 | 1 (over-promise) | Baseline + number rule (offline) | 0.697 | 0.592 | 0.847 | 0.531 | n/a |
 | 1 (over-promise) | **Ours, run A** (11:23) | 0.754 | 0.750 | 0.758 | 0.623 | 0.974 |
 | 1 (over-promise) | **Ours, run B** (11:48, same code) | 0.721 | 0.700 | 0.744 | 0.575 | 0.974 |
+| 1 (over-promise) | **Ours, run C** (12:11, same code) | 0.731 | 0.723 | 0.739 | 0.601 | 1.000 |
 | 2 (surprise) | Baseline | *TBD* | | | | |
 | 2 (surprise) | **Ours, unchanged** | *TBD* | | | | |
 
@@ -71,9 +72,10 @@ polite_opener 0.800 / 0.767 (0.867), padding_removal 1.000 / 1.000 (1.000). Corr
 Honest notes so far:
 - **Where we win and lose.** Catch on dropped conditions rises from 0.067 to 0.633–0.667, but keep falls below the baseline.
   The decision trace shows why: almost all false fails on good replies come from call 1 raising a false alarm that call 2
-  confirms (path `call1_fail>verify_confirms`). That is the next thing to fix (`VERIFY_EXAMPLES`, off until measured).
-- **Run-to-run noise is larger than most variant gains.** The two runs of identical code differ by 0.033 combined,
-  although 97.4% of verdicts are the same; a setting ships only if it wins in both repeats.
+  confirms (path `call1_fail>verify_confirms`). In run C, 9 of the 45 distinct correct originals fail this way, for example a deposit-amount sentence failed for
+  not repeating the card rules. That is the next thing to fix (`VERIFY_EXAMPLES`, off until measured).
+- **Run-to-run noise is larger than most variant gains.** Three runs of identical code give 0.754, 0.721 and 0.731
+  combined, although 97.4–100% of verdicts are the same within a run pair; a setting ships only if it wins in both repeats.
 - The number rule alone adds nothing on top of the baseline, which already fails every wrong-number edit. Its misses
   come from failing the correct original. The rule makes those catches cost no LLM call and holds no matter how the
   model behaves.
@@ -103,11 +105,13 @@ python3 run_judge.py --judge final_judge.py --pairs <cases.jsonl> --criterion <C
 ```
 
 ## Demo
-`submission/slides.pdf` (max 5 slides): *to be added on 13 Nov with the measured numbers.*
+[`submission/slides.pdf`](submission/slides.pdf) (5 slides), built from the score.py reports by `submission/make_slides.py` (rerun it after the criterion-2 run to fill that row). Live demo: `python3 demo/server.py` (or `--mock` offline), then http://127.0.0.1:8765.
 
 ## Next steps
-- Measure the pre-registered settings on full dev with `--repeat` (`X_verify_examples`, `J_adjudicate`,
-  `S_second_look`); leave-one-edit-type-out and two mock criteria (one not about the policy) before the surprise.
+- Measure the pre-registered settings on full dev with `--repeat` (`W_witness`, `X_verify_examples`,
+  `J_adjudicate`, `S_second_look`). `W_witness` targets the biggest loss: correct originals failed via
+  `call1_fail>verify_confirms` (original pass 0.805 / 0.765 vs baseline 0.858), where call 2 must now quote the
+  violating reply words and name a concrete case, checked in code; leave-one-edit-type-out and two mock criteria (one not about the policy) before the surprise.
   The stress set was not run on the LLM (team decision on 13 Nov: dev only).
 - Variant tests from the research plan: a separate recall call for conditions vs the verify call; three differently
   framed calls with a majority vote.

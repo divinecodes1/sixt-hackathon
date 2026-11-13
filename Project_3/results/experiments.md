@@ -15,3 +15,4 @@ Every number below is produced by score.py.
 | 11-13 11:47 | CKHV | dev (dev_pairs_113.jsonl) | 0.646 | 0.579 | 0.732 | 0.515 | n/a | 1.68 | all four evidence switches |
 | 11-13 11:50 | C_evidence | dev (dev_pairs_113.jsonl) | 0.662 | 0.594 | 0.749 | 0.537 | n/a | 1.79 | kept conditions must quote the reply; unproven ones go to call 2 |
 | 11-13 11:48 | base (run_dev.sh, run B) | dev (dev_pairs.jsonl) | 0.721 | 0.700 | 0.744 | 0.575 | 0.974 | n/a | same code as the 11:23 base row: run-to-run noise 0.033 |
+| 11-13 12:11 | base (run_dev.sh, run C) | dev (dev_pairs.jsonl) | 0.731 | 0.723 | 0.739 | 0.601 | 1.000 | 1.75 | same code; 412 calls per run, 0 parse failures, model claude-haiku-4.5 |
