@@ -15,3 +15,5 @@
   T_think3k   more thinking on call 1
   V_deanchor  call 2 sees where to look, not the first reviewer's conclusion
   base        current final_judge.py
+| 11-13 11:47 | CKHV | dev (dev_pairs_113.jsonl) | 0.646 | 0.579 | 0.732 | 0.515 | n/a | 1.68 | all four evidence switches |
+| 11-13 11:50 | C_evidence | dev (dev_pairs_113.jsonl) | 0.662 | 0.594 | 0.749 | 0.537 | n/a | 1.79 | kept conditions must quote the reply; unproven ones go to call 2 |

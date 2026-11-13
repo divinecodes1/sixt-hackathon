@@ -1,7 +1,8 @@
 # LLM architecture design: `final_judge.py`
 
 Team Divinecodes, SIXT Hackathon 2026, Project 3 "Judge the Judge". Status: implemented, unit-tested with a mock
-model; **not yet measured on `claude-haiku-4.5`** (numbers marked *TBD* in `starter_pack/RECIPE.md`). This document
+model (71 tests), measured on `claude-haiku-4.5` on dev (13 Nov: combined 0.754 and 0.721 in two runs of the same code,
+consistency 0.974; `starter_pack/RECIPE.md` Step 4). This document
 describes the code as it is; where it states a number, the number comes from `score.py` or a test run in this repo.
 
 ## 1. Objective and constraints
@@ -52,7 +53,7 @@ condition_removal catch 0.067.
 | Decision | Aggregate per-claim booleans; route between calls; apply the code rule | `_findings`, `_rule_overturned`, `_differences`, `judge` | yes |
 | Model client | One HTTP chat completion; retries; truncation detection | `_chat` (reuses `baseline_judge` HTTP helpers) | n/a |
 | Audit | One JSON line per reply: path, calls, rule hits, reply hash | `_trace` | yes |
-| Evaluation | Grouped CV, leave-one-edit-type-out, stress set, mock criteria, variants | `crossval.py`, `loeto.py`, `run_stress.sh`, `dev_tools/experiments.py` | harness |
+| Evaluation | Grouped CV, leave-one-edit-type-out, stress set, mock criteria, variants | `crossval.py`, `.claude/skills/p3-judge-iterate/scripts/loeto.py`, `run_stress.sh`, `dev_tools/experiments.py` | harness |
 
 The split follows one principle: **code decides what can be proven** (number values, aggregation, routing, call
 budget); **the LLM interprets language** (what a claim means, which policy rule it touches, whether a condition is
@@ -70,7 +71,7 @@ flowchart TD
     SL -->|no| P1[PASS · 1 call]
     SL -->|yes| C2b[Call 2: second look] -->|rejected| P2[PASS · 2 calls]
     C2b -->|confirmed| H1[Call 3: tie-break] --> V1[verdict · 3 calls]
-    C1 -->|some claim violates| C2[Call 2: verify findings,<br/>fresh context, no examples]
+    C1 -->|some claim violates| C2[Call 2: verify findings,<br/>fresh context, no examples<br/>unless VERIFY_EXAMPLES]
     C2 -->|any confirmed| F2[FAIL · 2 calls]
     C2 -->|all rejected / unreadable| H2[Call 3: tie-break] --> V2[verdict · 3 calls]
 ```
@@ -98,7 +99,9 @@ finding. Missing or mistyped fields are ignored, never coerced into a violation.
 
 **Call 2 output:** `{"findings": [{"id": 1, "decision": "confirmed|rejected", "reason": "str"}]}`.
 **Call 3 output:** at most four sentences, then `<verdict>PASS</verdict>` or `<verdict>FAIL</verdict>` (last tag wins).
-**Trace record:** `{"reply": sha256[:12], "lang", "calls", "rule_numbers", "path", "verdict"}`.
+**Trace record:** `{"reply": sha256[:12], "lang", "calls", "rule_numbers", "path", "verdict"}`; with
+`JUDGE_TRACE_REASONS=1` also `findings` (quote, reason) and `verify` (decision, reason) on the call-2 path. Those
+contain reply quotes: dev only, never on hidden cases.
 
 **Prompt layout** (same for all calls): `<policy>`, `<criterion>`, optional `<examples>`, `<question>`,
 `<reply lang>`, then the task instructions last. Policy and criterion are evidence and task; the reply is the
@@ -164,6 +167,11 @@ measured.
 | `THINKING_BUDGET` | `0` | extended thinking on call 1 | `T_think1k`, `T_think3k` |
 | `SECOND_LOOK` | `False` | call 2 re-checks passes whose fields show a policy difference | `S_second_look` |
 | `ADJUDICATE` | `False` | call 3 weighs both arguments | `J_adjudicate`, `SJ` |
+| `CONDITION_EVIDENCE` | `False` | a condition marked kept must quote the reply; code checks the quote | `C_evidence` |
+| `CLAUSE_IDS` | `False` | policy split into numbered clauses; call 1 cites id and words, code checks | `K_clauses` |
+| `HEDGE_FROM_QUOTE` | `False` | certainty rated from copied hedge words; quantities go to scope | `H_hedge` |
+| `VERIFY_DEANCHOR` | `False` | call 2 sees where to look, not call 1's conclusion | `V_deanchor` |
+| `VERIFY_EXAMPLES` | `False` | call 2 also sees the labelled examples | `X_verify_examples` |
 
 ## 11. Evaluation architecture
 
@@ -173,19 +181,25 @@ measured.
 | Does it hold on edit types it has not seen? | leave-one-edit-type-out; 11 synthetic edit types not in dev | `loeto.py`, `bash run_stress.sh` |
 | Does it transfer to a new criterion? | two mock criteria (numbers; filler/tone) | `p3-mock-criterion-rehearsal` skill |
 | Is it consistent? | two runs, cache off | `--repeat` in `score.py` |
-| Which setting ships? | pre-registered variants; on only if combined +0.02 on dev **and** stress, no keep loss, no consistency loss | `dev_tools/experiments.py --stress` |
+| Which setting ships? | pre-registered variants; on only if combined +0.02 on dev in **both** repeats, no keep loss, no consistency loss (stress set not run: team decision 13 Nov) | `dev_tools/experiments.py --pairs dev_pairs.jsonl --repeat` |
 
 Measured so far (offline, no LLM): rule-only on dev 0.697 / 0.592 / 0.847 (identical to the baseline: the rule
 changes no dev verdict); rule-only on the stress set catch 0.000, keep 0.857 (`results/stress_rule_only.csv`);
-37 unit tests pass with the mock model.
+71 unit tests pass with the mock model.
+
+Measured on `claude-haiku-4.5` (dev, 3-fold grouped CV, `score.py`): run A 0.754 / 0.750 / 0.758, kappa 0.623;
+run B (same code) 0.721 / 0.700 / 0.744, kappa 0.575; same verdict 0.974; 1.73 calls per reply. Correct originals pass
+0.805 / 0.765 (baseline 0.858). Settings screened on the fast subset: see `results/experiments.md`; none shipped.
 
 ## 12. Risks and next steps
 
 | Risk | Likelihood | Mitigation |
 |---|---|---|
-| Nothing measured on Haiku 4.5 yet | certain until the key arrives | Probe gateway, then run_dev.sh twice, then the variants |
+| False fails on good replies: keep 0.744–0.758 vs baseline 0.847 | measured | Nearly all come from call 2 confirming call 1's false alarm; `VERIFY_EXAMPLES` and `J_adjudicate` to measure with `--repeat` |
+| Run-to-run noise (0.033 combined between two runs of the same code) larger than the ship bar | measured | A setting must win in both repeats |
+| Number rule fails harmless dates, phone numbers, times or numbers echoed from the question (verdict mode; call 1 rarely marks them "same") | unknown: dev has none (0 of 226 questions contain a number) | Not measurable on dev; noted, not changed |
 | Number rule fails harmless stricter-number edits on unseen types | the rule fires on 30 of 35 such stress edits | Overturn by call 1, or `R_hint` if measured better |
-| Dev too small (9 source replies) to pick between close variants | high | Decide on dev **and** stress; ties keep the default |
+| Dev too small (9 source replies) to pick between close variants | high | Decide on two dev repeats; ties keep the default |
 | Gateway not repeatable at temperature 0 | unknown | `probe_gateway.py`; report consistency honestly |
 | Rate limits during the four scored runs | medium | Retries 10; lower `WORKERS`; start right after the freeze |
 | Call 3 parse failure biases to fail | low if prompts parse | Watch `parse_failures` in every run |

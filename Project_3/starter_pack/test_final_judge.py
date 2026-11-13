@@ -185,7 +185,7 @@ class Settings(Pipeline):
     def setUp(self):
         self.saved = {k: getattr(fj, k) for k in ("PREFILL", "THINKING_BUDGET", "EXAMPLE_STYLE", "NUMBER_RULE_MAX",
                                                    "SECOND_LOOK", "ADJUDICATE", "CONDITION_EVIDENCE", "CLAUSE_IDS",
-                                                   "HEDGE_FROM_QUOTE", "VERIFY_DEANCHOR")}
+                                                   "HEDGE_FROM_QUOTE", "VERIFY_DEANCHOR", "VERIFY_EXAMPLES")}
         MockLLM.bodies.clear()
 
     def tearDown(self):
@@ -197,7 +197,7 @@ class Settings(Pipeline):
         self.assertEqual(self.saved, {"PREFILL": False, "THINKING_BUDGET": 0, "EXAMPLE_STYLE": "single",
                                       "NUMBER_RULE_MAX": "verdict", "SECOND_LOOK": False, "ADJUDICATE": False,
                                       "CONDITION_EVIDENCE": False, "CLAUSE_IDS": False, "HEDGE_FROM_QUOTE": False,
-                                      "VERIFY_DEANCHOR": False})
+                                      "VERIFY_DEANCHOR": False, "VERIFY_EXAMPLES": False})
         self.assertEqual(fj._check_instructions(), fj.CHECK_INSTRUCTIONS)
         self.assertEqual(self.calls_for("You can extend dropcond at the counter."), ("pass", ["check"]))
         MockLLM.bodies.clear()
@@ -205,6 +205,32 @@ class Settings(Pipeline):
         body = MockLLM.bodies[0]
         self.assertEqual((body["temperature"], body["messages"][-1]["role"]), (0, "user"))
         self.assertNotIn("thinking", body)
+
+    def test_verify_examples_switch(self):
+        self.assertEqual(self.calls_for("You can always extend at the counter."), ("fail", ["check", "verify"]))
+        self.assertNotIn("<examples>", MockLLM.bodies[1]["messages"][1]["content"])  # default: call 2 sees none
+        fj.VERIFY_EXAMPLES = True
+        MockLLM.bodies.clear()
+        self.assertEqual(self.calls_for("You can always extend at the counter."), ("fail", ["check", "verify"]))
+        self.assertIn("<examples>", MockLLM.bodies[1]["messages"][1]["content"])
+
+    def test_trace_reasons_opt_in(self):
+        import tempfile
+        path = os.path.join(tempfile.mkdtemp(), "trace.jsonl")
+        old = {k: os.environ.get(k) for k in ("JUDGE_TRACE", "JUDGE_TRACE_REASONS")}
+        try:
+            os.environ["JUDGE_TRACE"] = path
+            os.environ.pop("JUDGE_TRACE_REASONS", None)
+            self.calls_for("You can always extend at the counter.")
+            os.environ["JUDGE_TRACE_REASONS"] = "1"
+            self.calls_for("You can always extend at the counter.")
+            rows = [json.loads(line) for line in open(path, encoding="utf-8")]
+            self.assertNotIn("findings", rows[0])  # default trace: no reply text
+            self.assertEqual(rows[1]["verdict"], rows[0]["verdict"])  # diagnostics never change the verdict
+            self.assertTrue(rows[1]["findings"] and rows[1]["verify"])
+        finally:
+            for k, v in old.items():
+                os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
 
     def test_prefill_sent_and_restored(self):
         fj.PREFILL = True

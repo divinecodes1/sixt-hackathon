@@ -18,6 +18,7 @@ Design document: ../docs/ARCHITECTURE.md
 
 Environment (see .env.example): JUDGE_LLM_BASE_URL, JUDGE_LLM_API_KEY, JUDGE_LLM_MODEL (claude-haiku-4.5).
 Optional: JUDGE_MAX_TOKENS (default 3000), JUDGE_TRACE (path: one JSON line per reply with the decision path), JUDGE_LLM_TIMEOUT, JUDGE_LLM_MAX_RETRIES,
+JUDGE_TRACE_REASONS=1 (add call-1 findings and call-2 decisions to the trace: contains reply quotes, dev only),
 JUDGE_LLM_OMIT_TEMPERATURE=1 (never send temperature; without it, a 400 that rejects temperature is resent without it),
 JUDGE_LLM_CACHE (development only; never set it for the scored runs: it would fake consistency).
 """
@@ -52,6 +53,7 @@ CONDITION_EVIDENCE = False   # a condition marked "kept" must quote the reply; c
 CLAUSE_IDS = False           # policy split into numbered clauses (no LLM); call 1 cites id + exact words, code checks
 HEDGE_FROM_QUOTE = False     # certainty rated from the original words (hedge words copied), quantities go to scope
 VERIFY_DEANCHOR = False      # call 2 gets only where to look (quote, policy text), not the first reviewer's conclusion
+VERIFY_EXAMPLES = False      # call 2 also sees the labelled examples (calibration against false confirms on good replies)
 
 # ----------------------------------------------------------------------------------------------- state set in prepare()
 # Read-only after prepare(); judge() never writes to these.
@@ -259,7 +261,9 @@ def _validate_number_rule(policy_numbers: frozenset, dev_pairs: list[dict]) -> s
 
 
 def _pick_examples(dev_pairs: list[dict]) -> list[dict]:
-    """One harmful and one harmless example per edit type, deterministic, alternating labels, at most MAX_EXAMPLES."""
+    """One example (the edited reply) per edit type, English and shortest first, deterministic, at most MAX_EXAMPLES,
+    ordered fail/pass alternately. Labels are balanced only as far as the types allow: with a single type (no
+    edit_type given) the shortest replies are taken regardless of label."""
     by_type: dict[str, list[dict]] = {}
     for c in sorted(dev_pairs, key=lambda c: str(c.get("case_id"))):
         by_type.setdefault(str(c.get("edit_type", "?")), []).append(c)
@@ -680,9 +684,13 @@ def judge(question: str, reply: str, lang: str, criterion: str, policy: str) -> 
         system2, listed2, instr2 = SYSTEM_VERIFY_NEUTRAL, _listed_neutral(findings), VERIFY_NEUTRAL_INSTRUCTIONS
     else:
         system2, listed2, instr2 = SYSTEM_VERIFY, _listed(findings), VERIFY_INSTRUCTIONS
-    user2 = _context(question, reply, lang, with_examples=False) + f"\n\n<findings>\n{listed2}\n</findings>"
+    user2 = _context(question, reply, lang, with_examples=VERIFY_EXAMPLES) + f"\n\n<findings>\n{listed2}\n</findings>"
     verify = _parse_json(_ask(t, system2, user2 + "\n\n" + instr2, prefill=prefill))
     decisions = [d for d in (verify or {}).get("findings") or [] if isinstance(d, dict)]
+    if os.environ.get("JUDGE_TRACE_REASONS", "") not in ("", "0"):  # diagnostics only; contains reply quotes
+        t["findings"] = [{"source": f["source"], "quote": f["quote"][:200], "reason": f["reason"][:300]} for f in findings]
+        t["verify"] = [{"decision": str(d.get("decision", "")), "reason": str(d.get("reason", ""))[:300]}
+                       for d in decisions]
     call1 = [f for f in findings if f["source"] == "call1"]
     if any(_confirmed(d) for d in decisions):
         return _trace(t, "call1_fail>verify_confirms" if call1 else "code_flags>verify_confirms", "fail")

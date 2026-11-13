@@ -1,8 +1,8 @@
 # Submission: Project 3, team Divinecodes
 
-> **Status (12 Nov, evening):** code, tests, recipe and research are in place. All LLM numbers below are marked
-> *TBD*: they are measured on 13 Nov with the `claude-haiku-4.5` key handed out on site. Nothing in this file is
-> estimated or invented.
+> **Status (13 Nov, 12:15):** dev numbers on `claude-haiku-4.5` are in (two full 3-fold CV runs, `score.py`).
+> Still open: the surprise criterion (14:30) and the hidden-set runs (16:00). Every number here comes from
+> `score.py`; nothing is estimated.
 
 ## Authors
 **Team name:** Divinecodes
@@ -43,7 +43,7 @@ The model is fixed by the rules: `claude-haiku-4.5`. What we compare is the reci
 | Model / recipe | Open-weight or closed | Where it runs | combined / catch / keep (dev, CV) | Calls and time per reply | Chosen? |
 | --- | --- | --- | --- | --- | --- |
 | baseline_judge.py, claude-haiku-4.5 | closed | API (SIXT endpoint) | 0.697 / 0.592 / 0.847 | 1 call | no, it is the reference |
-| final_judge.py, claude-haiku-4.5 | closed | API (SIXT endpoint) | *TBD 13 Nov* | 1–3 calls, *TBD* s | yes, the required model |
+| final_judge.py, claude-haiku-4.5 | closed | API (SIXT endpoint) | 0.754 / 0.750 / 0.758 (run A); 0.721 / 0.700 / 0.744 (run B) | 1–3 calls, 1.73 on average | yes, the required model |
 
 ## Results
 Measured on `dev_pairs.jsonl` with grouped cross-validation (`run_dev.sh`); the hidden-set scores come from the
@@ -53,7 +53,8 @@ organizers.
 |---|---|---|---|---|---|---|
 | 1 (over-promise) | Baseline | 0.697 | 0.592 | 0.847 | 0.531 | n/a |
 | 1 (over-promise) | Baseline + number rule (offline) | 0.697 | 0.592 | 0.847 | 0.531 | n/a |
-| 1 (over-promise) | **Ours** | *TBD* | *TBD* | *TBD* | *TBD* | *TBD* |
+| 1 (over-promise) | **Ours, run A** (11:23) | 0.754 | 0.750 | 0.758 | 0.623 | 0.974 |
+| 1 (over-promise) | **Ours, run B** (11:48, same code) | 0.721 | 0.700 | 0.744 | 0.575 | 0.974 |
 | 2 (surprise) | Baseline | *TBD* | | | | |
 | 2 (surprise) | **Ours, unchanged** | *TBD* | | | | |
 
@@ -61,7 +62,18 @@ Baseline per edit type (catch): condition_removal 0.067, hedge_removal 0.500, wr
 wrong_policy_detail 1.000. Keep: sentence_reorder 0.733, filler_padding 0.800, translation 0.833,
 polite_opener 0.867, padding_removal 1.000.
 
+Ours per edit type (run A / run B; baseline in brackets): catch condition_removal 0.667 / 0.633 (0.067),
+hedge_removal 0.700 / 0.600 (0.500), wrong_number 0.714 / 0.686 (0.800), wrong_policy_detail 0.920 / 0.880 (1.000);
+keep sentence_reorder 0.600 / 0.567 (0.733), filler_padding 0.667 / 0.667 (0.800), translation 0.722 / 0.722 (0.833),
+polite_opener 0.800 / 0.767 (0.867), padding_removal 1.000 / 1.000 (1.000). Correct originals pass 0.805 / 0.765
+(baseline 0.858).
+
 Honest notes so far:
+- **Where we win and lose.** Catch on dropped conditions rises from 0.067 to 0.633–0.667, but keep falls below the baseline.
+  The decision trace shows why: almost all false fails on good replies come from call 1 raising a false alarm that call 2
+  confirms (path `call1_fail>verify_confirms`). That is the next thing to fix (`VERIFY_EXAMPLES`, off until measured).
+- **Run-to-run noise is larger than most variant gains.** The two runs of identical code differ by 0.033 combined,
+  although 97.4% of verdicts are the same; a setting ships only if it wins in both repeats.
 - The number rule alone adds nothing on top of the baseline, which already fails every wrong-number edit. Its misses
   come from failing the correct original. The rule makes those catches cost no LLM call and holds no matter how the
   model behaves.
@@ -94,8 +106,9 @@ python3 run_judge.py --judge final_judge.py --pairs <cases.jsonl> --criterion <C
 `submission/slides.pdf` (max 5 slides): *to be added on 13 Nov with the measured numbers.*
 
 ## Next steps
-- Leave-one-edit-type-out evaluation and two mock criteria (one not about the policy) to test transfer before the
-  surprise.
+- Measure the pre-registered settings on full dev with `--repeat` (`X_verify_examples`, `J_adjudicate`,
+  `S_second_look`); leave-one-edit-type-out and two mock criteria (one not about the policy) before the surprise.
+  The stress set was not run on the LLM (team decision on 13 Nov: dev only).
 - Variant tests from the research plan: a separate recall call for conditions vs the verify call; three differently
   framed calls with a majority vote.
 - For SIXT: run the recipe as a release gate for chatbot changes. A reply that drops a policy condition is blocked

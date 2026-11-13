@@ -12,3 +12,6 @@ Every number below is produced by score.py.
 | 11-13 11:40 | H_hedge | dev (dev_pairs_fast.jsonl) | 0.700 | 0.750 | 0.657 | 0.552 | n/a | 1.72 | certainty from the original words; quantities to scope; gloss last |
 | 11-13 11:42 | CKHV | dev (dev_pairs_30.jsonl) | 0.585 | 0.521 | 0.667 | 0.444 | n/a | 1.65 | all four evidence switches |
 | 11-13 11:44 | C_evidence | dev (dev_pairs_30.jsonl) | 0.656 | 0.646 | 0.667 | 0.547 | n/a | 1.73 | kept conditions must quote the reply; unproven ones go to call 2 |
+| 11-13 11:47 | CKHV | dev (dev_pairs_113.jsonl) | 0.646 | 0.579 | 0.732 | 0.515 | n/a | 1.68 | all four evidence switches |
+| 11-13 11:50 | C_evidence | dev (dev_pairs_113.jsonl) | 0.662 | 0.594 | 0.749 | 0.537 | n/a | 1.79 | kept conditions must quote the reply; unproven ones go to call 2 |
+| 11-13 11:48 | base (run_dev.sh, run B) | dev (dev_pairs.jsonl) | 0.721 | 0.700 | 0.744 | 0.575 | 0.974 | n/a | same code as the 11:23 base row: run-to-run noise 0.033 |

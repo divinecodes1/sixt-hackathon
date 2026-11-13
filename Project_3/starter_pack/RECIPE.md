@@ -59,12 +59,13 @@ The LLM keeps everything else: conditions, hedges, scope, policy details, and th
 5. **Tie-break (call 3)** only when calls 1 and 2 disagree: an independent holistic judgment with examples. With
    `ADJUDICATE = True` (off until measured), call 3 sees both reviewers' arguments and checks each one against the
    reply, instead of judging from scratch.
-6. **Evidence switches (built, off until measured; `../docs/reports/Policy grounded LLM judge methods.md`).** `CONDITION_EVIDENCE`: a condition marked kept must quote the reply, and code checks the quote; unproven ones go to call 2. `CLAUSE_IDS`: `prepare()` numbers the policy clauses (no LLM, format-generic); call 1 cites a clause id and its exact words, and code checks them. `HEDGE_FROM_QUOTE`: certainty is rated from the copied original hedge words, and quantity words go to scope. `VERIFY_DEANCHOR`: call 2 sees only where to look, not the first reviewer's conclusion. Findings raised by code (not by call 1) that call 2 rejects end in pass, without a call 3.
+6. **Evidence switches (built, off until measured; `../docs/reports/Policy grounded LLM judge methods.md`).** `CONDITION_EVIDENCE`: a condition marked kept must quote the reply, and code checks the quote; unproven ones go to call 2. `CLAUSE_IDS`: `prepare()` numbers the policy clauses (no LLM, format-generic); call 1 cites a clause id and its exact words, and code checks them. `HEDGE_FROM_QUOTE`: certainty is rated from the copied original hedge words, and quantity words go to scope. `VERIFY_DEANCHOR`: call 2 sees only where to look, not the first reviewer's conclusion. Findings raised by code (not by call 1) that call 2 rejects end in pass, without a call 3. `VERIFY_EXAMPLES`: call 2 also sees the labelled examples, aimed at the false confirms on good replies (staff review, 13 Nov).
 7. **Examples picked by code** from the labelled pairs: one per edit type, English first, alternating labels, at most
    8 (more rounds per type when there are fewer types, e.g. no `edit_type` given). The construction note (what was changed) is shown as the rationale. Temperature 0 everywhere. Reasoning in
    English with quotes in the original language. At most 3 calls per reply; no state between calls.
 
-- Check: catch goes up on dev without keep going down. *To be measured on 13 Nov with the provided key (Step 4).*
+- Check: catch goes up on dev without keep going down. **Measured: catch goes up (0.592 → 0.700–0.750), keep goes
+  down (0.847 → 0.744–0.758).** The false fails are the open problem (Step 4).
 
 **Operational safeguards (no effect on verdicts).** Newer Anthropic API versions reject `temperature` with HTTP 400; the judge then resends that request without it (counted in `STATS["temperature_dropped"]`, reported by `crossval.py`; `JUDGE_LLM_OMIT_TEMPERATURE=1` skips the rejected attempt), and `dev_tools/probe_gateway.py` tests this separately from the key. HTTP 408 and 529 (overloaded) are retried. `run_submission.sh` raises the retry budget to 10 so one
 rate-limited reply cannot abort a scored run; `JUDGE_TRACE=<file>` writes one JSON line per reply (decision path,
@@ -80,9 +81,17 @@ come from the source replies being scored. Run twice for consistency: `bash run_
 |---|---|---|---|---|---|
 | Baseline (precomputed) | 0.697 | 0.592 | 0.847 | 0.531 | n/a |
 | Baseline + number rule (offline) | 0.697 | 0.592 | 0.847 | 0.531 | n/a |
-| Ours, claude-haiku-4.5, 3-fold CV | *TBD 13 Nov* | | | | |
+| Ours, claude-haiku-4.5, 3-fold CV, run A | 0.754 | 0.750 | 0.758 | 0.623 | 0.974 |
+| Ours, same code, run B | 0.721 | 0.700 | 0.744 | 0.575 | 0.974 |
 
-Per language and per edit type: see `../results/dev_pairs_report.txt` once run.
+Per language and per edit type: `../results/exp_base_dev_dev_pairs_report.txt` (run A) and
+`../results/dev_pairs_report.txt` (run B). Condition_removal catch rises from 0.067 to 0.633–0.667, hedge_removal from
+0.500 to 0.600–0.700. Correct originals pass only 0.765–0.805 (baseline 0.858), so every harmless type loses keep.
+The trace (`JUDGE_TRACE`) shows the path: nearly all false fails on pass-labelled replies are call-1 alarms that call 2
+confirmed. The two runs of identical code differ by 0.033 combined: a setting has to win in both repeats.
+
+Settings screened so far (`../results/experiments.md`, 30-case fast subset, base 0.716): `S_second_look` 0.724,
+`C_evidence` 0.700, `H_hedge` 0.700, `V_deanchor` 0.680. None clears the +0.02 bar, so all stay off.
 
 **Edit types not in dev.** The hidden set has new edit types, and leave-one-edit-type-out only rotates the 9 dev
 types. So we hand-wrote 99 stress cases of 11 new types (`../stress/make_stress.py`, our own mock edits, never used as
@@ -93,8 +102,8 @@ number that occurs elsewhere in the policy) and `number_as_word`. `bash ../run_s
 | Stress set (99 cases) | combined | catch | keep | same verdict (2 runs) |
 |---|---|---|---|---|
 | Number rule alone (offline) | 0.000 | 0.000 | 0.857 | n/a |
-| Baseline, claude-haiku-4.5 | *TBD 13 Nov* | | | |
-| Ours, claude-haiku-4.5 | *TBD 13 Nov* | | | |
+| Baseline, claude-haiku-4.5 | not run (team decision 13 Nov: dev only) | | | |
+| Ours, claude-haiku-4.5 | not run (team decision 13 Nov: dev only) | | | |
 
 What the offline row shows: the rule catches none of the new harmful types (they are the LLM's job), and it fires
 on 30 of 35 harmless `stricter_number` edits (keep 0.143 there): in verdict mode those replies pass only if call 1
@@ -109,10 +118,12 @@ off or to hint mode if the new criterion does not reward it) and picks new examp
 
 | | combined | catch | keep |
 |---|---|---|---|
-| Baseline | *TBD* | | |
-| Ours, recipe unchanged | *TBD* | | |
+| Baseline | *TBD (arrives about 14:30)* | | |
+| Ours, recipe unchanged | *TBD (arrives about 14:30)* | | |
 
 ## What did not work
+- **Evidence switches did not help** on the fast subset (base 0.716): `C_evidence` 0.700, `H_hedge` 0.700,
+  `V_deanchor` 0.680. All four together (`CKHV`) scored lowest on both subsets it ran on. They stay off.
 - **Adding the number rule to the baseline gives +0.000.** The baseline already fails every wrong-number edit; its
   losses on that type come from failing correct originals. The rule saves an LLM call and makes those catches certain,
   but the gain has to come from fewer false fails.
