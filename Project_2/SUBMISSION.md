@@ -1,115 +1,82 @@
-# Submission: Project 2 — Divinecodes
+# Submission: Project 2 - Divinecodes
 
 ## Authors
-**Team:** Divinecodes. **Project:** Project 2, Mileage Forecasting & Erroneous Mileage Detection.
+
+**Team name:** Divinecodes  
+**Project:** Project 2: Mileage Forecasting & Erroneous Mileage Detection
 
 ## Problem and approach
-SIXT needs current mileage for valuation and future mileage for defleet planning while rental readings are delayed.
-We deliver nowcasts, forecasts, measured prediction ranges, a retrospective review queue, and masked-file inference.
 
-The key engineering insight is that **measurement time and information-availability time differ**. OnRent mileage
-often belongs to handover; the row may arrive later. We retime the reading but never make its mileage, rental metadata,
-product or vehicle category available before the row was recorded. Future-field mutation tests guard this boundary.
-After the last recorded status, a missing rental row is not evidence of idleness: the utilisation plan fills that gap.
-An OnRent row is not necessarily a completed rental: 634,082 rows have a return date later than their recorded date.
+SIXT may receive a car's mileage weeks after it was driven. Valuation and vehicle-sale planning still need an estimate today. We address both requested tasks:
+
+- **A. Mileage prediction:** estimate the current odometer reading (nowcast) and its future value (forecast), with an uncertainty range.
+- **B. Erroneous-reading detection:** flag reports that conflict with the car's usage history, with a reason and a discrepancy score for human review.
+
+Our Python pipeline uses past mileage, rental dates/status, rental product, vehicle category and planned utilisation. It estimates separate driving rates for rented and idle days. Cars with little history borrow information from similar cars. Future usage combines historical patterns with planned utilisation; recorded defleet status stops planning new rentals.
+
+**Key assumption:** repeated OnRent mileage often represents the handover reading rather than a fresh measurement. We assign it to handover for modelling, but only use it after its status row was recorded. This interpretation needs domain confirmation. Future rows and their attributes are excluded from earlier predictions.
+
+For detection, we combine prediction-residual outliers with rules for isolated spikes/dips, decreasing mileage, implausible daily rates, movement without a recorded rental, and unchanged readings despite rental days. These are suspicious reports, not confirmed fraud.
 
 ## Models and why
-All models run locally: numpy plus DuckDB for Parquet. No API, credentials or paid inference.
-`naive_last` holds mileage constant; `mean_rate` extrapolates calendar-day usage. Rental-aware models separately fit
-nonnegative rented/idle rates, shrink sparse histories toward product/category priors, calibrate utilisation, and stop
-planning new rentals after recorded defleet. The recent variant downweights old usage. `blend` averages mean-rate
-and rental-aware predictions. `robust_rate` cleans already-observed isolated typos and clips historical interval rates.
 
-| Model (own statistical code; no external weights) | Nowcast MAE km | Nowcast MAPE | Forecast MAE km | Forecast MAPE | Validation choice |
-|---|---:|---:|---:|---:|---|
-| naive_last | 561 | 9.54% | 7,376 | 38.01% | candidate / baseline |
-| mean_rate | 474 | 9.07% | 2,995 | 20.42% | candidate / baseline |
-| rent_aware | 423 | 7.35% | 3,255 | 18.33% | candidate / baseline |
-| rent_aware_recent | 415 | 7.28% | 3,176 | 17.91% | nowcast |
-| blend | 435 | 7.77% | 2,734 | 17.31% | forecast |
-| robust_rate | 431 | 8.46% | 2,747 | 18.24% | candidate / baseline |
+All six models are our own statistical implementations, run locally with NumPy and DuckDB. They use no external model weights, API keys or paid inference. All were compared on the same held-out targets.
 
-Measured total pipeline runtime: 1,109.5 seconds on this machine, including reading, evaluation and flags.
-This is a batch measurement, not a per-request latency benchmark or an infrastructure-cost estimate.
+| Model | Main idea | Nowcast MAE (km) | Nowcast MAPE | Forecast MAE (km) | Forecast MAPE | Selected? |
+|---|---|---:|---:|---:|---:|---|
+| naive_last | Keep the last reading unchanged | 561 | 9.54% | 7,376 | 38.01% | Reference baseline |
+| mean_rate | Extend average daily driving | 474 | 9.07% | 2,995 | 20.42% | Stronger baseline |
+| rent_aware | Separate rented and idle-day rates | 423 | 7.35% | 3,255 | 18.33% | No |
+| rent_aware_recent | Give recent usage more weight | **415** | **7.28%** | 3,176 | 17.91% | **Nowcast** |
+| blend | Average mean_rate and rent_aware | 435 | 7.77% | **2,734** | **17.31%** | **Forecast** |
+| robust_rate | Reduce the influence of past anomalous readings | 431 | 8.46% | 2,747 | 18.24% | No |
 
-## Results and evaluation protocol
-Input: **2,699,762 rows, 27,630 vehicles**, 1,889,253 distinct retimed readings.
-Train/test vehicle split by stable hash: **22,071/5,559**.
-Held-out vehicles supply their own earlier history, as they would in deployment; they never train fleet priors.
+Selection uses validation MAE, not final test performance. Measured batch runtime was **1,109.5 seconds**, including loading, evaluation and flags. Per-item latency and infrastructure cost were not benchmarked.
 
-- Models train at 2025-03-31; model choice uses subsequent training-vehicle targets through 2025-07-21.
-- Separate later targets through 2025-11-11 calibrate ranges. This avoids reusing selection outcomes for calibration.
-- Final models fit at 2025-11-11; test targets are later readings on held-out vehicles.
-- Nowcast: rolling origin one day before each fresh recorded return-source target. Forecast: fixed origin at the test cutoff.
-- Final model choice is **rent_aware_recent** for nowcast and **blend** for forecast, using validation MAE only.
-- Test targets: **20,732 nowcast / 14,274 forecast**. No target is removed because our detector dislikes it.
+## Results
 
-Against the last-reading baseline, the selected nowcast reduces MAE by **26.0%**;
-the selected forecast by **62.9%**. The full table includes the stronger mean-rate baseline.
-MAE is primary. MAPE divides by max(recorded odometer, 1 km), so zero/near-zero and erroneous targets can dominate it.
-WAPE of distance since the last reading, bias and errors by gap are in `results/metrics.json`.
-Forecast lead-time buckets are separately reported under `by_segment/lead_time:*`; these differ from stale-reading gap buckets.
+### A. Mileage prediction
 
-| Task | Measured range coverage (90% target) | Mean full range width km |
-|---|---:|---:|
-| nowcast | 90.7% | 1,611 |
-| forecast | 95.6% | 13,366 |
+The development file contains **2,699,762 rows and 27,630 vehicles**. A stable vehicle-ID hash separates **22,071 training vehicles** from **5,559 held-out vehicles**. Held-out cars contribute their own available past history at prediction time, but do not train fleet priors.
 
-| Task | Rental product known at origin | Targets | Selected MAE km |
-|---|---|---:|---:|
-| nowcast | ShortTerm | 20,620 | 414 |
-| nowcast | LongTerm | 105 | 527 |
-| nowcast | ? | 7 | 254 |
-| forecast | ShortTerm | 14,134 | 2,724 |
-| forecast | LongTerm | 140 | 3,796 |
+Models train at **2025-03-31**. Later training-vehicle targets through **2025-07-21** select the models; separate targets through **2025-11-11** calibrate uncertainty ranges. Final evaluation uses readings after **2025-11-11** on held-out vehicles: **20,732 nowcast targets** and **14,274 forecast targets**. Nowcasts use an origin one day before a fresh return-source reading; forecasts use the fixed test cutoff. Suspicious targets are not removed to improve scores.
 
-### Suspicious-reading evidence
-Flags cover isolated spikes/dips, persistent decreases, implausible rates, movement without a recorded rental,
-unchanged fresh readings despite rental days, and robust residual outliers. Scores are estimated discrepant kilometres.
-A same-day difference alone is deliberately insufficient: multiple legitimate rentals can happen in a day.
-Total flagged readings: **84.22 per 1,000**. Per-rule counts are in the metrics file.
+**MAE** is the average absolute error in kilometres; lower is better. **MAPE** is the average absolute error as a percentage of recorded odometer mileage, using a minimum denominator of 1 km. These are error measures, not classification accuracy.
 
-Injected-error benchmark: deterministic development cohort, training vehicles only, rows recorded by 2025-02-01,
-3 fixed seeds. Thresholds were not tuned on final held-out outcomes.
+The selected nowcast reduces MAE by **26.0%** versus the last-reading baseline; the selected forecast reduces it by **62.9%**. The table also includes the stronger mean-rate baseline.
 
-| Injected error | Injected | Detected | Recall |
-|---|---:|---:|---:|
-| extra_digit | 101 | 101 | 100.0% |
-| missing_digit | 114 | 111 | 97.4% |
-| rollback | 110 | 109 | 99.1% |
-| stuck | 76 | 60 | 78.9% |
-| transposed | 78 | 70 | 89.7% |
+Ranges target 90% coverage. Measured coverage was **90.7% for nowcasts** and **95.6% for forecasts**, with average full widths of **1,611 km** and **13,366 km** respectively. Coverage means the recorded value fell inside the range; it does not mean the point estimate was that percentage accurate.
 
-Overall episode recall: **451/479 (94.2%)**. Exact corrupted-reading recall: **450/479 (93.9%)**.
-Episode recall gives a rollback credit if its first lowered reading or its immediately preceding reading is flagged.
-Untouched readings flagged: **5,965/85,519**; these can include existing errors or stale-data artifacts,
-so this is **not measured false-positive rate or precision**. Additional untouched flags beyond the original flag set:
-**122**. The benchmark also records recall among originally unflagged injected readings.
+Evidence: [results/metrics.json](results/metrics.json), including bias and errors by reading age, forecast lead time and rental product; [results/data_profile.json](results/data_profile.json) contains the data audit.
 
-Vehicle-level review files are excluded from this public package. Human domain adjudication remains pending;
-no confirmed-fraud or precision claim is made. Public examples in the slides are conceptual, not copied vehicle records.
+### B. Erroneous-reading detection
 
-### Masked inference
-Masked-file inference: 163,047 of 163,047 missing-mileage rows received an estimate; 3,745 had no own past reading, of which 3,745 receive an explicitly flagged cohort-median fallback. 0 remain unsupported. 159,302 estimates have a calibrated range. Detailed output: `results/local/test_predictions.csv` and `results/local/test_completed.parquet` (not public). The completed table preserves the original columns and fills `sixt_predicted_mileage_interp`; `sixt_error` remains unchanged. There are no ground-truth labels for these masked rows; no test accuracy is claimed.
-The two supplied vehicle sets do not overlap (metadata check). Their prediction/error columns are empty;
-we do not use them as features or invent errors where the ground truth is missing.
-Targets later than a vehicle's last recorded status use the forecast recipe and an origin at that status;
-they are not treated as observed current-rental snapshots. Quarter-start development snapshots precede that origin.
-Cold-start cohort medians use vehicle category/model year where sufficient development examples exist.
-They are explicitly marked for review, have no calibrated range, and are not validated by the vehicle-history MAE above.
+There are no confirmed wrong-reading labels. We therefore measured detection using injected errors in a development-only cohort: training vehicles, rows recorded by **2025-02-01**, and three fixed seeds. Thresholds were not tuned on final held-out outcomes.
 
-### Limits and what did not work
-- Retiming all OnRent values is a working schema interpretation, not a fleet-wide proven fact. Of 609,671 same-day
-  paired vehicle-days, 424,008 have lower OnRent mileage, 171,003 are equal and 14,660 are higher.
-- The sample is dominated by short-term observations. Product is the historical mode known at the origin, not a perfect current-contract label.
-- Return-source readings may be stale or wrong. There is no independent odometer ground truth; raw-target MAE is a transparent proxy.
-- Observed return days differ from arbitrary valuation days. Rolling nowcasts are one-day-ahead proxies, not direct labels of hidden daily mileage.
-- Conformal ranges do not guarantee 90% coverage under temporal/fleet shift or dependent repeated readings; measured coverage is reported above.
-- Long-horizon and long-term errors need separate monitoring. Unusual driving, transfers and missing rentals can trigger flags without an entry error.
-- Synthetic checks support development only; the fleet results above are the current performance evidence.
+The detector caught **450 of 479 corrupted readings (93.9%)**. Allowing a rollback to be identified at its first lowered reading or the immediately preceding reading gives **451 of 479 episodes (94.2%)**. The benchmark includes extra/missing digits, rollbacks, stuck readings and transposed digits.
+
+It also flagged **5,965 of 85,519 untouched readings**, including **122 additional flags** beyond the original flag set. Untouched readings can already contain errors, so this is not a measured false-positive rate. Across the development fleet, **84.22 readings per 1,000** were flagged. Real flag precision and domain plausibility still need expert review.
+
+Evidence: [results/flag_benchmark.json](results/flag_benchmark.json) and the rule counts in [results/metrics.json](results/metrics.json).
+
+### Supplied masked-file inference
+
+We produced estimates for **all 163,047 missing-mileage rows**. Of these, **159,302** have historical estimates with calibrated ranges; **3,745** lack their own past reading and receive a clearly marked cohort-median fallback without a calibrated range. The completed file preserves the original columns, fills `sixt_predicted_mileage_interp`, and leaves `sixt_error` unchanged.
+
+The inference runner uses a bounded development cohort and past quarter-start snapshots to build priors; its fallback performance is not established by the held-out vehicle-history scores above. The masked file has no target labels, so filling every row is **completion, not measured accuracy**.
+
+Evidence: [results/test_inference_summary.json](results/test_inference_summary.json) and [results/inference_validation.json](results/inference_validation.json). Vehicle-level outputs are generated locally, not included in the public package.
+
+### Limitations
+
+- Recorded return mileage can be stale or incorrect; it is a proxy for true odometer mileage. One-day-before-return nowcasts do not directly validate every possible valuation day.
+- Short-term rentals dominate. The held-out long-term groups have only **105 nowcast** and **140 forecast** targets, so long-term performance needs more validation.
+- Forecast ranges are wide. Reported coverage is empirical, not guaranteed under changes in fleet or usage.
+- Missing rental records and unusual driving can create false alarms. Human-confirmed flag precision is not yet available.
 
 ## How to run
-Python 3.11+; verified here with Python 3.14. From the repository root:
+
+Python **3.11+**; checked locally with Python 3.14. No environment variables or API keys are required. From the repository root on Windows:
 
 ```powershell
 cd Project_2
@@ -117,35 +84,16 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe -m unittest test_mileage -v
 .\.venv\Scripts\python.exe run_baseline.py example_file.csv --out results/example
-# Organizer files must be provided locally; they are not needed for the public example.
-.\.venv\Scripts\python.exe profile_data.py data/data_30_percent_sample.parquet
-.\.venv\Scripts\python.exe run_baseline.py data/data_30_percent_sample.parquet --out results
-.\.venv\Scripts\python.exe flag_benchmark.py data/data_30_percent_sample.parquet --max-vehicles 1000 --training-only --before 2025-02-01 --rate 0.02 --seeds 3 --out results/flag_benchmark.json
-.\.venv\Scripts\python.exe predict_missing.py
 ```
 
-Linux/macOS: replace `.\.venv\Scripts\python.exe` with `.venv/bin/python`.
-Create the ignored `data/` directory and supply the organizer Parquet files locally before running the full-data commands.
-`python run_baseline.py` always uses the public example; input selection is explicit.
-For historical product exports: `python run_baseline.py example_file.csv --out results/example --asof 2024-08-01 --forecast-date 2024-08-31`.
-The export reselects its model using validation before its as-of date. Missing calibration is explicit rather than an invented range.
-Vehicle-level organizer outputs go to ignored `results/local/`; aggregate evidence stays in `results/`.
+The public example runs without organizer data; its scores are only a smoke check. To reproduce the fleet results, provide the supplied Parquet files locally in the ignored `data/` directory and follow [README.md: Reproduce the supplied-data analysis](README.md#reproduce-the-supplied-data-analysis). That section also documents inference, generated outputs, and Linux/macOS setup. Use a separate example output directory to preserve the recorded fleet metrics.
 
 ## Demo
-**`submission/slides.pdf`** is the chosen demonstration deliverable: five slides covering the problem, method, measured results, business use and limitations.
 
-The [interactive offline demo](submission/demo.html) uses synthetic vehicles and actual model outputs.
-The five-slide PDF remains the selected submission deliverable.
+[submission/slides.pdf](submission/slides.pdf) is the required presentation deliverable: **five slides**. The additional [submission/demo.html](submission/demo.html) is a self-contained offline demo: open it in a browser to compare current mileage, change forecast horizons and review suspicious readings. It uses made-up vehicles and actual model outputs.
 
-## Business relevance and next steps
-A daily batch can publish mileage estimates, their age/range and an explicit review status for valuation analysts.
-Forecast exports support defleet planning; mileage-limit alerts are separate from suspected data errors.
-Start in shadow mode: prioritize the largest discrepancies, ask domain experts to label a review sample, and measure workload/precision.
-Then validate actual versus planned return semantics, obtain fresh monthly long-term readings, and calibrate ranges separately by product/horizon.
-No monetary savings are asserted without a SIXT valuation/cost study.
+## Next steps
 
-## Submission safety
-The working package excludes organizer datasets and vehicle-level outputs. Earlier git commits still contain
-tracked organizer data; deleting working files does not remove that history. Resolve publication permission
-or remove those files from the published history before submission. No commit or push is authorized by this write-up.
-The public repository must contain code, this write-up, aggregate results and the deck by 16:45 on 13 November 2026.
+Run a daily shadow-mode batch for valuation and defleet analysts, showing estimates, uncertainty and a prioritised review queue. Ask domain experts to label flags and confirm rental-date semantics; collect fresh long-term readings and recalibrate by product and forecast horizon. Measure review workload and valuation impact before claiming financial savings.
+
+**Publication status:** organizer files and detailed outputs are excluded from the working package, but earlier git commits still contain the supplied data. Publication permission or history cleanup remains necessary before final submission; the current cleanup is not yet committed or pushed.
