@@ -9,7 +9,8 @@ on rent now is known operationally from its handover, so nowcasts may use the cu
 
 Pieces:
 - load_rows / build_fleet: CSV -> per-vehicle observations (day, km), rental intervals, utilisation plan, segment
-  (level, vehicle type, rental product, region) and the first defleet day (status >= 3).
+  (level, vehicle type, rental product as known at each date; region is kept for display only) and the first
+  defleet day (status >= 3).
 - Models (all share fit(fleet, train_ids, cutoff) and predict(vehicle, cutoff_day, target_day, nowcast) -> km):
     NaiveLast        last known reading (no growth)
     MeanRate         last + vehicle's average km/day so far (the starter's baseline)
@@ -47,6 +48,8 @@ PRIOR_STRENGTH_DAYS = 30.0   # empirical-Bayes shrinkage: a vehicle with 30 obse
 PRIOR_MIN_INTERVALS = 20     # a segment prior needs at least this many training intervals, else use its parent
 HALF_LIFE_DAYS = 60.0        # RentAwareRecent: weight of an interval halves every 60 days back from the cutoff
 ALPHA = 0.1                  # prediction intervals: 90% target coverage
+INTERVAL_BY_HORIZON = True   # calibrate the interval width per horizon bucket (gap since the last known reading);
+                             # buckets longer than any validated one use the longest validated bucket's width
 PLAN_WINDOW = 30             # utilisation plan calibration: window length (days) ...
 PLAN_LOOKBACK = 120          # ... and how far back before the cutoff the window origins go
 
@@ -82,7 +85,8 @@ class Vehicle:
     uti: list[tuple[int, float]] = field(default_factory=list)     # (day, planned utilisation)
     level: str = "?"
     vtype: str = "?"
-    product: str = "?"                                     # most frequent rental_product (ShortTerm / LongTerm)
+    product: str = "?"                                     # most frequent rental_product over all rows (display)
+    products: list[tuple[int, str]] = field(default_factory=list)  # (handover_day, rental_product), sorted
     region: str = "?"
     max_mileage: float | None = None
     defleet_day: int | None = None                         # first day with status_code >= 3 (defleet / sold)
@@ -138,6 +142,7 @@ def build_fleet(rows: list[dict]) -> dict[str, Vehicle]:
             rent[vid].add((h, ret))
             if r.get("rental_product"):
                 products[vid][r["rental_product"]] += 1
+                v.products.append((h, r["rental_product"]))
         on_rent = (r.get("on_rent_status") or "").strip() == "OnRent"
         raw[vid].append((obs_day_of(r), km, "handover" if on_rent and h is not None else "return", taken))  # type: ignore
     for vid, v in fleet.items():
@@ -152,6 +157,7 @@ def build_fleet(rows: list[dict]) -> dict[str, Vehicle]:
             v.obs_known.append(known)
         v.rentals = _merge(sorted(rent[vid]))
         v.uti.sort()
+        v.products = sorted(set(v.products))
         if products[vid]:
             v.product = products[vid].most_common(1)[0][0]
     return fleet
@@ -165,6 +171,12 @@ def _merge(iv: list[tuple[int, int]]) -> list[tuple[int, int]]:
         else:
             out.append([a, b])
     return [(a, b) for a, b in out]
+
+
+def product_at(v: Vehicle, day: int) -> str:
+    """Most frequent rental product among rentals handed over by `day` ("?" if none): no look-ahead."""
+    seen = Counter(p for h, p in v.products if h <= day)
+    return seen.most_common(1)[0][0] if seen else "?"
 
 
 def rental_days(v: Vehicle, start: int, end: int, known_by: int | None = None) -> float:
@@ -260,9 +272,10 @@ class RentAware(NaiveLast):
     half_life: float | None = None
 
     @staticmethod
-    def _keys(v: Vehicle) -> list[tuple]:
-        """Prior keys from coarse to fine: fleet, rental product, + vehicle level, + vehicle type."""
-        return [(), (v.product,), (v.product, v.level), (v.product, v.level, v.vtype)]
+    def _keys(v: Vehicle, day: int) -> list[tuple]:
+        """Prior keys from coarse to fine: fleet, rental product (as known on `day`), + vehicle level, + vehicle type."""
+        p = product_at(v, day)
+        return [(), (p,), (p, v.level), (p, v.level, v.vtype)]
 
     def fit(self, fleet: dict[str, Vehicle], train_ids: set[str], cutoff: int) -> "RentAware":
         groups: dict[tuple, list[Interval]] = defaultdict(list)
@@ -270,7 +283,7 @@ class RentAware(NaiveLast):
         for vid in train_ids:
             v = fleet[vid]
             ints = _intervals(v, cutoff)
-            for key in self._keys(v):
+            for key in self._keys(v, cutoff):
                 groups[key] += ints
             for r, i, *_ in ints:
                 util_num, util_den = util_num + r, util_den + r + i
@@ -286,7 +299,7 @@ class RentAware(NaiveLast):
             v = fleet[vid]
             for a, b in v.rentals:
                 if b <= cutoff:
-                    self.durations[v.product].append(b - a + 1)
+                    self.durations[product_at(v, a)].append(b - a + 1)
                     self.durations[None].append(b - a + 1)
         # sorted durations + prefix sums: expected_on_rent in O(log n) instead of a scan of every rental per call
         self._dur = {}
@@ -312,7 +325,7 @@ class RentAware(NaiveLast):
                         (v.defleet_day is not None and v.defleet_day <= o + PLAN_WINDOW):
                     continue
                 running = [a for a, b in v.rentals if a <= o < b]
-                on = self.expected_on_rent(v.product, o - running[-1] + 1, PLAN_WINDOW) if running else 0.0
+                on = self.expected_on_rent(product_at(v, o), o - running[-1] + 1, PLAN_WINDOW) if running else 0.0
                 num += rental_days(v, o, o + PLAN_WINDOW, known_by=o + PLAN_WINDOW) - on
                 den += plan * (PLAN_WINDOW - on)
         return min(max(num / den, 0.5), 2.0) if den > 0 else 1.0
@@ -329,14 +342,14 @@ class RentAware(NaiveLast):
         total = (pre[j] - pre[i]) - elapsed * (j - i) + horizon * (len(ds) - j)
         return float(total / (len(ds) - i))
 
-    def prior_for(self, v: Vehicle) -> tuple[float, float]:
-        for key in reversed(self._keys(v)):
+    def prior_for(self, v: Vehicle, day: int) -> tuple[float, float]:
+        for key in reversed(self._keys(v, day)):
             if key in self.prior:
                 return self.prior[key]
         return self.fleet_prior
 
     def rates(self, v: Vehicle, cutoff: int) -> tuple[float, float]:
-        pr = self.prior_for(v)
+        pr = self.prior_for(v, cutoff)
         ints = _intervals(v, cutoff)
         weights = None if self.half_life is None else [0.5 ** ((cutoff - d1) / self.half_life) for *_, d1 in ints]
         r_rent, r_idle, days = _fit_rates(ints, weights)
@@ -368,7 +381,8 @@ class RentAware(NaiveLast):
             known = rental_days(v, last_d, min(target, cutoff), known_by=cutoff)
             rest = max(target - max(last_d, cutoff), 0)
             running = [a for a, b in v.rentals if a <= cutoff < b]
-            on = self.expected_on_rent(v.product, cutoff - running[-1] + 1, rest) if running and rest else 0.0
+            on = self.expected_on_rent(product_at(v, cutoff), cutoff - running[-1] + 1, rest) if running and rest \
+                else 0.0
             rd = known + on + (rest - on) * self.utilisation(v, cutoff)
         rd = min(rd, gap)
         return last_km + r_rent * rd + r_idle * (gap - rd)
@@ -468,6 +482,35 @@ def _scale(gap: int) -> float:
     return math.sqrt(max(gap, 1))
 
 
+_BUCKETS = ["0d"] + [f"{lo}-{hi}d" if hi < 10_000 else f">{lo - 1}d" for lo, hi in HORIZONS]   # ascending
+
+
+def interval_q(rows: list[Row], name: str, alpha: float = ALPHA) -> dict[str, float]:
+    """Conformal widths (km per sqrt(day)) from calibration rows: overall ("all") and per horizon bucket (buckets with
+    too few rows for the (1 - alpha) quantile are left out)."""
+    scores: dict[str, list[float]] = defaultdict(list)
+    for gap, km, _, p in rows:
+        if p[name] is not None:
+            sc = abs(p[name] - km) / _scale(gap)
+            scores["all"].append(sc)
+            scores[_bucket(gap)].append(sc)
+    qs = {b: _conformal_q(v, alpha) for b, v in scores.items()}
+    return {b: q for b, q in qs.items() if q is not None}
+
+
+def q_for(qs: dict[str, float], gap: int) -> float | None:
+    """Width for one prediction: its horizon bucket's; beyond the validated buckets, the longest validated bucket's,
+    never narrower than the overall width; the overall width when INTERVAL_BY_HORIZON is off."""
+    if not INTERVAL_BY_HORIZON or not qs:
+        return qs.get("all")
+    b = _bucket(gap)
+    if b in qs:
+        return qs[b]
+    shorter = [qs[x] for x in _BUCKETS[:_BUCKETS.index(b)] if x in qs]
+    cands = [x for x in (shorter[-1] if shorter else None, qs.get("all")) if x is not None]
+    return max(cands) if cands else None
+
+
 def backtest(fleet: dict[str, Vehicle], cutoff: int | None = None, alpha: float = ALPHA) -> dict:
     """Nowcast and forecast backtest. Leakage-free protocol:
     1. validation: models fitted at a validation cutoff on training vehicles, scored on their readings up to the test
@@ -494,19 +537,16 @@ def backtest(fleet: dict[str, Vehicle], cutoff: int | None = None, alpha: float 
         res[task] = _metrics(rows, names)
         res["intervals"][task] = {}
         for name in names:
-            q = _conformal_q([abs(p[name] - km) / _scale(gap) for gap, km, _, p in val_rows if p[name] is not None],
-                             alpha)
-            res["intervals"][task][name] = _coverage(rows, name, q)
+            res["intervals"][task][name] = _coverage(rows, name, interval_q(val_rows, name, alpha))
     return res
 
 
-def _coverage(rows: list[Row], name: str, q: float | None) -> dict:
-    out: dict = {"q_km_per_sqrt_day": q}
-    if q is None:
-        return out
+def _coverage(rows: list[Row], name: str, qs: dict[str, float]) -> dict:
+    out: dict = {"q_km_per_sqrt_day": qs.get("all"), "q_by_horizon": {b: qs[b] for b in _BUCKETS if b in qs}}
     groups: dict[str, list] = defaultdict(list)
     for gap, km, _, p in rows:
-        if p[name] is not None:
+        q = q_for(qs, gap)
+        if p[name] is not None and q is not None:
             hit = abs(p[name] - km) <= q * _scale(gap)
             groups["all"].append((hit, 2 * q * _scale(gap)))
             groups[_bucket(gap)].append((hit, 2 * q * _scale(gap)))
@@ -548,9 +588,7 @@ def nowcast_table(fleet: dict[str, Vehicle], asof: int, model_name: str = "rent_
     ids = set(fleet)
     cal_cut = asof - 60
     cal = cls().fit(fleet, ids, cal_cut)
-    q = _conformal_q([abs(p[cal.name] - km) / _scale(gap)
-                      for gap, km, _, p in predictions(fleet, ids, cal_cut, "nowcast", [cal], upto=asof)
-                      if p[cal.name] is not None], alpha)
+    qs = interval_q(predictions(fleet, ids, cal_cut, "nowcast", [cal], upto=asof), cal.name, alpha)
     m = cls().fit(fleet, ids, asof)
     out = []
     for vid in sorted(fleet):
@@ -561,7 +599,8 @@ def nowcast_table(fleet: dict[str, Vehicle], asof: int, model_name: str = "rent_
             continue
         pred = m.predict(full, asof, asof, nowcast=True)
         gap = asof - v.obs_day[n - 1]
-        half = None if q is None else q * _scale(gap)
+        q = q_for(qs, gap)
+        half = None if q is None or pred is None else q * _scale(gap)
         out.append({"vhcl_anon_id": vid, "asof": date.fromordinal(asof).isoformat(),
                     "last_reading_date": date.fromordinal(v.obs_day[n - 1]).isoformat(), "last_km": v.obs_km[n - 1],
                     "gap_days": gap, "rental_days_in_gap": rental_days(v, v.obs_day[n - 1], asof, known_by=asof),
@@ -602,10 +641,20 @@ def without(v: Vehicle, drop: set[int] | dict[int, str]) -> Vehicle:
                    obs_src=[v.obs_src[j] for j in keep], obs_known=[v.obs_known[j] for j in keep])
 
 
+MIN_Z_GROUP = 30   # residuals needed before a rental product gets its own robust z scale (else the pooled scale)
+
+
 def flags(fleet: dict[str, Vehicle], model: RentAware | None = None) -> list[dict]:
     """One row per suspicious reading: vehicle, day, km, rule, detail, score. Isolated outliers are flagged first and
     removed; the other rules and the model then see the cleaned series, so one typo does not flag every later reading.
-    Residual flags use the model's nowcast from everything measured before that day, scaled by sqrt(gap)."""
+    Residual flags use the model's nowcast from everything measured before that day, scaled by sqrt(gap), and a robust
+    z computed per rental product (long-term cars vary differently from short-term ones).
+
+    score = the estimated km the reading is off by, for every rule, so one sorted list is a review queue:
+    isolated_outlier |reading - mean of neighbours|; decrease km below the running maximum; implausible_rate km beyond
+    MAX_KM_PER_DAY; moved_without_rental km gained; no_movement_on_rent km the model expected over the rental days;
+    residual_outlier |reading - nowcast|. A decrease is flagged once per episode (when the series first drops below
+    its maximum, or drops further), not on every later reading that is still below the old maximum."""
     outliers = {vid: isolated_outliers(v) for vid, v in fleet.items()}
     clean = {vid: without(v, outliers[vid]) for vid, v in fleet.items()}
     model = model or RentAware().fit(clean, set(clean), max(d for v in clean.values() for d in v.obs_day))
@@ -618,13 +667,17 @@ def flags(fleet: dict[str, Vehicle], model: RentAware | None = None) -> list[dic
                         "source": v.obs_src[j], "rule": "isolated_outlier",
                         "detail": f"{kind}: {k:.0f} km between {kp:.0f} and {kn:.0f}",
                         "score": float(abs(k - (kp + kn) / 2))})
-        peak = -math.inf
+        peak, low = -math.inf, None   # low: lowest reading of the current decrease episode (None: not in one)
         for j in range(len(cv.obs_day)):
             d, km = cv.obs_day[j], cv.obs_km[j]
             row = {"vhcl_anon_id": vid, "date": date.fromordinal(d).isoformat(), "km": km, "source": cv.obs_src[j]}
             if km < peak - DECREASE_TOL_KM:
-                out.append({**row, "rule": "decrease", "detail": f"{peak - km:.0f} km below an earlier reading",
-                            "score": float(peak - km)})
+                if low is None or km < low - DECREASE_TOL_KM:     # a new episode, or a further drop within one
+                    out.append({**row, "rule": "decrease", "detail": f"{peak - km:.0f} km below an earlier reading",
+                                "score": float(peak - km)})
+                low = km if low is None else min(low, km)
+            else:
+                low = None
             peak = max(peak, km)
             if j == 0:
                 continue
@@ -632,24 +685,33 @@ def flags(fleet: dict[str, Vehicle], model: RentAware | None = None) -> list[dic
             gap = max(d - d0, 1)
             if (km - k0) / gap > MAX_KM_PER_DAY:
                 out.append({**row, "rule": "implausible_rate", "detail": f"{(km - k0) / gap:.0f} km/day",
-                            "score": float((km - k0) / gap)})
+                            "score": float(km - k0 - MAX_KM_PER_DAY * gap)})
             rd = rental_days(cv, d0, d)
             if km - k0 > IDLE_MOVE_KM and rd == 0:
                 out.append({**row, "rule": "moved_without_rental",
                             "detail": f"+{km - k0:.0f} km with no known rental", "score": float(km - k0)})
             if abs(km - k0) <= DECREASE_TOL_KM and rd >= STUCK_RENTAL_DAYS:
+                expected = model.rates(cv.view(d), d0)[0] * rd
                 out.append({**row, "rule": "no_movement_on_rent",
-                            "detail": f"{km - k0:+.0f} km over {rd:.0f} rental days", "score": float(rd)})
+                            "detail": f"{km - k0:+.0f} km over {rd:.0f} rental days (about {expected:.0f} expected)",
+                            "score": float(expected)})
             if cv.obs_src[j] == "return":
                 p = model.predict(cv, d - 1, d, nowcast=True)
                 if p is not None:
-                    resid.append((row, (km - p) / math.sqrt(gap), km - p))
+                    resid.append((row, (km - p) / math.sqrt(gap), km - p, product_at(cv, d)))
     if resid:
-        z = _robust_z(np.array([s for _, s, _ in resid]))
-        for (row, _, e), zi in zip(resid, z):
+        z = np.empty(len(resid))
+        pooled = np.array([s for _, s, _, _ in resid])
+        z_all = _robust_z(pooled)
+        groups: dict[str, list[int]] = defaultdict(list)
+        for i, (*_, prod) in enumerate(resid):
+            groups[prod].append(i)
+        for idx in groups.values():
+            z[idx] = _robust_z(pooled[idx]) if len(idx) >= MIN_Z_GROUP else z_all[idx]
+        for (row, _, e, _), zi in zip(resid, z):
             if abs(zi) > RESIDUAL_Z and abs(e) >= RESIDUAL_MIN_KM:
                 out.append({**row, "rule": "residual_outlier",
-                            "detail": f"{e:+.0f} km vs nowcast (robust z {zi:+.1f})", "score": float(abs(zi))})
+                            "detail": f"{e:+.0f} km vs nowcast (robust z {zi:+.1f})", "score": float(abs(e))})
     return out
 
 

@@ -29,14 +29,19 @@ back. We **nowcast** current mileage with a 90% range, **forecast** future milea
      level > vehicle type (empirical Bayes, so new vehicles and long-term cars get sensible rates).
    - Variants: time-decayed rates (`rent_aware_recent`) and a blend with the starter's mean rate (`blend`).
 3. **Leakage-free model choice and intervals:** a validation cutoff before the test cutoff (training vehicles only)
-   picks the model per task and calibrates a split-conformal interval: ± q·√(days since the last known reading).
-4. **Flags** (each is "check this reading", never "fraud"):
+   picks the model per task and calibrates a split-conformal interval: ± q·√(days since the last known reading),
+   with q calibrated per horizon bucket (1–7, 8–14, 15–30, 31–60, >60 days); a bucket longer than any validated one
+   uses the longest validated bucket's q, never less than the overall q.
+4. **Flags** (each is "check this reading", never "fraud"). Every flag's `score` is the estimated km the reading
+   is off by, so one sorted list is the review queue across rules:
    - `isolated_outlier`: a one-off typo (extra or missing digit) between two consistent neighbours. It is removed
      before the other rules, so one typo no longer flags every later reading;
-   - `decrease` below the running maximum (a rollback: the highest reading is a floor on true mileage);
+   - `decrease` below the running maximum (a rollback: the highest reading is a floor on true mileage), flagged
+     once per episode (or when it drops further), not on every later reading still below the old maximum;
    - `implausible_rate` > 1,500 km/day; `moved_without_rental` > 300 km with no rental;
      `no_movement_on_rent`: unchanged although on rent ≥ 3 days (copied or under-reported reading);
-   - `residual_outlier`: robust z > 8 and ≥ 1,000 km from the nowcast.
+   - `residual_outlier`: robust z > 8 (scale per rental product once it has 30+ residuals) and ≥ 1,000 km from
+     the nowcast.
 
 ## Models and why
 No ML library, no LLM: numpy and the standard library, milliseconds per vehicle.
@@ -70,10 +75,10 @@ artifacts of the stale OnRent rows).
 
 | Task, held-out vehicles after the cutoff | naive_last | mean_rate | rent_aware | blend | 90% coverage (chosen) |
 |---|---|---|---|---|---|
-| Nowcast MAE km (`results/synthetic/run_baseline.txt`, 122 targets) | 3,001 | 974 | **710** | 829 | 89% |
-| Forecast MAE km (same run) | 7,190 | 1,346 | 1,455 | **1,243** | 89% |
-| Nowcast MAE km, 5 fleets (`results/synthetic/seeds.json`) | 2,559 ± 149 | 739 ± 139 | **550 ± 55** | 610 ± 92 | 88–94% |
-| Forecast MAE km, 5 fleets (same file) | 7,179 ± 160 | 1,476 ± 101 | 1,384 ± 183 | **1,362 ± 112** | 78–96% |
+| Nowcast MAE km (`results/synthetic/run_baseline.txt`, 122 targets) | 3,001 | 974 | **710** | 829 | 86% |
+| Forecast MAE km (same run) | 7,190 | 1,346 | 1,455 | **1,243** | 90% |
+| Nowcast MAE km, 5 fleets (`results/synthetic/seeds.json`) | 2,559 ± 149 | 739 ± 139 | **550 ± 55** | 610 ± 92 | 86–95% |
+| Forecast MAE km, 5 fleets (same file) | 7,179 ± 160 | 1,476 ± 101 | 1,384 ± 183 | **1,362 ± 112** | 88–95% |
 
 Nowcast error grows with the days since the last known reading (rent_aware, one fleet: 245 km at 1–7 days, 957 km
 at 15–30 days, 3,095 km beyond 60 days): exactly where long rentals hurt.
@@ -84,7 +89,7 @@ at 15–30 days, 3,095 km beyond 60 days): exactly where long rentals hurt.
 |---|---|---|---|---|---|---|
 | Recall | 100% | 100% | 69% | 96% | 79% | **91%** |
 
-Untouched readings flagged: 3.0 per 1,000 (70 of 23,426: residual_outlier 34, isolated_outlier 19,
+Untouched readings flagged: 2.9 per 1,000 (67 of 23,426: residual_outlier 31, isolated_outlier 19,
 moved_without_rental 14, implausible_rate 8). The residual threshold (z 8, 1,000 km) was chosen with this benchmark
 to keep that rate low (a looser threshold caught more errors but flagged many more untouched readings).
 
@@ -93,7 +98,9 @@ to keep that rate low (a looser threshold caught more errors but flagged many mo
   days by construction, while our plan calibration targets arbitrary days ([EDA.md](EDA.md) finding 4). We report it
   instead of tuning to the evaluation.
 - Validation does not always pick the test winner (forecast on the synthetic run: rent_aware chosen, blend better).
-- Interval coverage for forecasts varies by fleet (78–96%): the √gap scaling is a simplification over long horizons.
+- Forecast interval coverage varied by fleet (78–96%) with one √gap-scaled width; calibrating the width per horizon
+  bucket narrowed it to 88–95% (`results/synthetic/seeds.json`). Beyond the horizons seen in validation the
+  intervals are now conservative (wider than needed) rather than too narrow.
 - Transposed digits that change the reading by little are hard to tell apart from normal driving (69%).
 - One vehicle in the example; synthetic numbers check the method, not SIXT's reality. Full data: *TBD 13 Nov*.
 
@@ -104,7 +111,7 @@ exploration).
 cd Project_2
 python -m venv .venv && . .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install numpy
-python -m unittest test_mileage -v                  # 16 tests, incl. no-leakage and the flag benchmark
+python -m unittest test_mileage -v                  # 21 tests, incl. no-leakage and the flag benchmark
 python run_baseline.py                              # first CSV in data/ (git-ignored), else example_file.csv
 python run_baseline.py data/<file>.csv --asof 2024-08-01   # + per-vehicle nowcast with 90% range (git-ignored)
 python flag_benchmark.py data/<file>.csv            # injected-error recall and false-flag rate on that data

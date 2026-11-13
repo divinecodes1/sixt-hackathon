@@ -103,8 +103,22 @@ class Models(unittest.TestCase):
     def test_hierarchical_prior_falls_back(self):
         fleet = M.build_fleet(synth_rows())
         m = M.RentAware().fit(fleet, set(fleet), 10**7)
-        v = M.Vehicle("new", product="ShortTerm", level="Unknown level")
-        self.assertEqual(m.prior_for(v), m.prior[("ShortTerm",)])
+        v = M.Vehicle("new", products=[(1, "ShortTerm")], level="Unknown level")
+        self.assertEqual(m.prior_for(v, 10**7), m.prior[("ShortTerm",)])
+
+    def test_product_is_not_taken_from_the_future(self):
+        v = M.Vehicle("x", products=[(10, "ShortTerm"), (50, "LongTerm"), (60, "LongTerm")])
+        self.assertEqual(M.product_at(v, 5), "?")
+        self.assertEqual(M.product_at(v, 20), "ShortTerm")
+        self.assertEqual(M.product_at(v, 70), "LongTerm")
+
+    def test_interval_width_per_horizon(self):
+        rows = [(3, 100.0, 0, {"m": 100.0 + e}) for e in range(-20, 21)] + \
+               [(20, 100.0, 0, {"m": 100.0 + 10 * e}) for e in range(-20, 21)]
+        qs = M.interval_q(rows, "m", 0.1)
+        self.assertLess(qs["1-7d"], qs["15-30d"])
+        self.assertEqual(M.q_for(qs, 4), qs["1-7d"])
+        self.assertEqual(M.q_for(qs, 90), max(qs["15-30d"], qs["all"]))   # beyond validated horizons
 
     def test_vehicle_holdout_used_when_enough_vehicles(self):
         res = M.backtest(M.build_fleet(synth_rows(n_vehicles=40)))
@@ -163,6 +177,26 @@ class Flags(unittest.TestCase):
         rules = {f["rule"] for f in _flags_for(rows, "V05")}
         self.assertIn("implausible_rate", rules)
         self.assertIn("residual_outlier", rules)
+
+    def test_rollback_is_flagged_once_per_episode(self):
+        rows = synth_rows()
+        v03 = sorted((r for r in rows if r["vhcl_anon_id"] == "V03"), key=lambda r: r["vhcl_fct_taken_datm"])
+        start = v03[20]["vhcl_fct_taken_datm"]
+        for r in v03:
+            if r["vhcl_fct_taken_datm"] >= start:
+                r["vhcl_current_mileage"] = str(float(r["vhcl_current_mileage"]) - 5000)
+        dec = [f for f in _flags_for(rows, "V03") if f["rule"] == "decrease"]
+        self.assertEqual(len(dec), 1)
+        self.assertAlmostEqual(dec[0]["score"], 5000, delta=1500)
+
+    def test_scores_are_km_for_every_rule(self):
+        rows = synth_rows()
+        last = max((r for r in rows if r["vhcl_anon_id"] == "V05" and r["on_rent_status"] == "NotOnRent"),
+                   key=lambda r: r["vhcl_fct_taken_datm"])
+        last["vhcl_current_mileage"] = str(float(last["vhcl_current_mileage"]) + 90000)
+        by_rule = {f["rule"]: f["score"] for f in _flags_for(rows, "V05")}
+        self.assertGreater(by_rule["residual_outlier"], 80000)       # km off, not a z-score
+        self.assertGreater(by_rule["implausible_rate"], 50000)       # km beyond the plausible maximum
 
     def test_clean_fleet_has_few_flags(self):
         fleet = M.build_fleet(synth_rows())

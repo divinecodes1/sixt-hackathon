@@ -594,36 +594,46 @@
  "intervals": {
   "nowcast": {
    "naive_last": {
-    "q_km_per_sqrt_day": null
+    "q_km_per_sqrt_day": null,
+    "q_by_horizon": {}
    },
    "mean_rate": {
-    "q_km_per_sqrt_day": null
+    "q_km_per_sqrt_day": null,
+    "q_by_horizon": {}
    },
    "rent_aware": {
-    "q_km_per_sqrt_day": null
+    "q_km_per_sqrt_day": null,
+    "q_by_horizon": {}
    },
    "rent_aware_recent": {
-    "q_km_per_sqrt_day": null
+    "q_km_per_sqrt_day": null,
+    "q_by_horizon": {}
    },
    "blend": {
-    "q_km_per_sqrt_day": null
+    "q_km_per_sqrt_day": null,
+    "q_by_horizon": {}
    }
   },
   "forecast": {
    "naive_last": {
-    "q_km_per_sqrt_day": null
+    "q_km_per_sqrt_day": null,
+    "q_by_horizon": {}
    },
    "mean_rate": {
-    "q_km_per_sqrt_day": null
+    "q_km_per_sqrt_day": null,
+    "q_by_horizon": {}
    },
    "rent_aware": {
-    "q_km_per_sqrt_day": null
+    "q_km_per_sqrt_day": null,
+    "q_by_horizon": {}
    },
    "rent_aware_recent": {
-    "q_km_per_sqrt_day": null
+    "q_km_per_sqrt_day": null,
+    "q_by_horizon": {}
    },
    "blend": {
-    "q_km_per_sqrt_day": null
+    "q_km_per_sqrt_day": null,
+    "q_by_horizon": {}
    }
   }
  },

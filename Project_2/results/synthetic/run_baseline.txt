@@ -2,27 +2,27 @@ fleet.csv: 9000 rows, 300 vehicles, 7979 distinct readings, products {'ShortTerm
 test period after 2024-07-03 (validation cutoff 2024-05-18); vehicles train/test 241/59
 
 NOWCAST (122 target readings)      MAE km   bias km  MAPE odo  WAPE dist  skill vs naive  90% interval coverage
-  naive_last             3001     -3001     9.29%       1.00           +0.00  89%
-  mean_rate               974      -462     3.17%       0.32           +0.68  90%
-  rent_aware              710      -251     2.15%       0.24           +0.76  89% <- chosen on validation
-  rent_aware_recent       712      -221     2.12%       0.24           +0.76  90%
-  blend                   829      -357     2.61%       0.28           +0.72  90%
+  naive_last             3001     -3001     9.29%       1.00           +0.00  84%
+  mean_rate               974      -462     3.17%       0.32           +0.68  88%
+  rent_aware              710      -251     2.15%       0.24           +0.76  86% <- chosen on validation
+  rent_aware_recent       712      -221     2.12%       0.24           +0.76  85%
+  blend                   829      -357     2.61%       0.28           +0.72  88%
   rent_aware MAE by days since the last known reading: 1-7d: 245 (n=29)  8-14d: 519 (n=46)  15-30d: 957 (n=42)  >60d: 3095 (n=5)
 
 FORECAST (122 target readings)      MAE km   bias km  MAPE odo  WAPE dist  skill vs naive  90% interval coverage
-  naive_last             7190     -7190    20.10%       1.00           +0.00  85%
-  mean_rate              1346      -441     4.22%       0.19           +0.81  95%
-  rent_aware             1455     -1212     4.01%       0.20           +0.80  89% <- chosen on validation
-  rent_aware_recent      1432     -1161     3.87%       0.20           +0.80  89%
-  blend                  1243      -827     3.79%       0.17           +0.83  92%
+  naive_last             7190     -7190    20.10%       1.00           +0.00  90%
+  mean_rate              1346      -441     4.22%       0.19           +0.81  94%
+  rent_aware             1455     -1212     4.01%       0.20           +0.80  90% <- chosen on validation
+  rent_aware_recent      1432     -1161     3.87%       0.20           +0.80  90%
+  blend                  1243      -827     3.79%       0.17           +0.83  91%
   rent_aware MAE by days since the last known reading: 1-7d: 395 (n=3)  8-14d: 298 (n=5)  15-30d: 686 (n=36)  31-60d: 1734 (n=64)  >60d: 2794 (n=14)
 
-FLAGS: 13 flags (1.63 flagged readings per 1,000) {'residual_outlier': 13}; the starter's raw-timestamp rules flag 263 (mostly stale OnRent readings, see EDA.md)
+FLAGS: 11 flags (1.38 flagged readings per 1,000) {'residual_outlier': 11}; the starter's raw-timestamp rules flag 263 (mostly stale OnRent readings, see EDA.md)
   2024-08-05  0F2AE6E0D8      81627 km  residual_outlier     +10474 km vs nowcast (robust z +20.8)
-  2024-06-01  A7FA0D7278      19130 km  residual_outlier     +2805 km vs nowcast (robust z +12.5)
-  2024-08-14  440FA78561      18017 km  residual_outlier     +2753 km vs nowcast (robust z +12.3)
-  2024-08-19  EF53007702      15960 km  residual_outlier     +3703 km vs nowcast (robust z +11.7)
+  2024-08-19  EF53007702      15960 km  residual_outlier     +3703 km vs nowcast (robust z +10.0)
   2024-02-14  1A6158D1FC       7247 km  residual_outlier     +3352 km vs nowcast (robust z +10.6)
+  2024-06-01  A7FA0D7278      19130 km  residual_outlier     +2805 km vs nowcast (robust z +12.5)
+  2024-08-14  440FA78561      18017 km  residual_outlier     +2753 km vs nowcast (robust z +10.5)
   2024-06-15  031920BD67      46731 km  residual_outlier     +2102 km vs nowcast (robust z +9.4)
   2024-08-21  0D19D09528      49918 km  residual_outlier     +2072 km vs nowcast (robust z +9.3)
   2024-07-27  C1002EB10C      39243 km  residual_outlier     +2034 km vs nowcast (robust z +9.1)
