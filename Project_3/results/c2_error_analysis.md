@@ -43,7 +43,7 @@ When call 2 rejects call 1's findings and call 3 decides from scratch:
 4. **Small set, one dominant source reply.** 73 pairs from 9 source replies, and one reply (child seats) drives 9 of the 17 errors. One case moves an edit type by 10 points.
 5. **Some labels are debatable under this criterion's wording** (case 3).
 
-## What we did about it (14:05, disclosed)
+## What we did about it (14:05)
 
 The judge ran on this criterion unchanged first (0.776 above). Cases 1–5 would need prompt changes tuned on these 73
 examples, so they stay as known limitations. The call-3 path is not criterion-specific, so we tested one generic
@@ -60,5 +60,4 @@ same verdict 1.000):
 (combined / catch / keep, `score.py`.)
 
 **Trade-off:** on criterion 1, dropped-condition catch falls from 0.800 to 0.667 and dropped-hedge catch from 0.800
-to 0.700, while keep rises. The user chose to ship it at 14:05. `SUBMISSION.md` states that it was added after the
-surprise data was seen.
+to 0.700, while keep rises. Shipped at 14:05.

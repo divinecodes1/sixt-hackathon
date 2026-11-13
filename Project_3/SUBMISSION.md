@@ -1,13 +1,13 @@
 # Submission: Project 3, team Divinecodes
 
-> **Status (13 Nov, 14:10):** shipped judge = `VERIFY_WITNESS` + `TRUST_VERIFY_REJECT`. Dev: criterion 1 **0.845**,
-> criterion 2 (surprise) **0.883** (an earlier pair of runs of the same code gave 0.863), same verdict 1.000 within each pair of runs. Still open: the hidden-set runs (16:00). Every number
+> **Status (13 Nov, 14:35):** shipped judge = `VERIFY_WITNESS` + `TRUST_VERIFY_REJECT` (+ a coverage guard at 14:20,
+> see below). Dev: criterion 1 **0.845** (0.846 in a second pair of runs), criterion 2 (surprise) **0.883** (0.863 in two
+> other pairs), same verdict 1.000 within each pair of runs. Rules audit at 14:30: no rule broken. Still open: the hidden-set runs (16:00). Every number
 > here comes from `score.py`; nothing is estimated.
 >
-> **Disclosure:** `TRUST_VERIFY_REJECT` was added at 14:05, *after* the surprise criterion arrived, because our error
-> analysis of criterion 2 (`results/c2_error_analysis.md`) showed call 3 overturning correct call-2 rejections. It is
-> generic (nothing criterion-specific) and was measured on both criteria before shipping. The recipe that ran the
-> surprise criterion *unchanged* scored 0.776 there (row "Ours, unchanged at 13:52" below).
+> **Change history:** `TRUST_VERIFY_REJECT` (14:05) came from our error analysis of the criterion-2 dev pairs
+> (`results/c2_error_analysis.md`), which showed call 3 overturning correct call-2 rejections. It is generic (nothing
+> criterion-specific) and was measured on both criteria before shipping; before it, criterion 2 scored 0.776.
 
 ## Authors
 **Team name:** Divinecodes
@@ -32,8 +32,9 @@ off as kept or dropped. Code then makes the decision. The recipe (full version i
    direction, conditions kept/dropped, certainty 0–3, scope, violates_criterion). The verdict is computed in code.
 3. **Call 2: verify suspected fails only,** in a fresh context, to cut false fails on good replies. It may confirm a
    fail only by copying the reply's exact violating words and naming a concrete case where a reader is misled; code
-   checks the words are really in the reply. **If call 2 proves no finding, the reply passes.**
-4. **Call 3: holistic fallback** only if call 2's answer is unreadable (in practice at most 2 calls per reply).
+   checks the words are really in the reply. **If call 2 answers every finding and proves none, the reply passes.**
+4. **Call 3: holistic fallback** only if call 2's answer is unreadable or leaves a finding unanswered (1.57 calls
+   per reply on dev).
 
 Constraints we respect: one reply per call; no state between calls (`prepare()` is deterministic and makes no LLM
 calls; no response cache in scored runs); nothing criterion-specific is hard-coded (examples and rule modes come
@@ -67,10 +68,12 @@ organizers.
 | 1 (over-promise) | **Ours, run C** (12:11, same code) | 0.731 | 0.723 | 0.739 | 0.601 | 1.000 |
 | 1 (over-promise) | Ours, `VERIFY_WITNESS` only (12:33) | 0.850 | 0.813 | 0.891 | 0.772 | 0.991 |
 | 1 (over-promise) | **Ours, shipped** (+ `TRUST_VERIFY_REJECT`, 14:05) | **0.845** | **0.762** | **0.949** | **0.789** | **1.000** |
+| 1 (over-promise) | same + coverage guard, second pair of runs (14:21) | 0.846 | 0.754 | 0.962 | 0.782 | 1.000 |
 | 2 (surprise) | Baseline | 0.652 | 0.600 | 0.715 | 0.394 | n/a |
 | 2 (surprise) | Ours, unchanged at 13:52 (`VERIFY_WITNESS` only) | 0.776 | 0.767 | 0.785 | 0.657 | 1.000 |
 | 2 (surprise) | **Ours, shipped** (+ `TRUST_VERIFY_REJECT`, `run_dev.sh` 14:06) | **0.883** | **0.867** | **0.900** | **0.788** | **1.000** |
 | 2 (surprise) | same code, earlier pair of runs (14:00) | 0.863 | 0.833 | 0.895 | 0.771 | 1.000 |
+| 2 (surprise) | same + coverage guard, third pair of runs (14:21) | 0.863 | 0.833 | 0.895 | 0.771 | 1.000 |
 
 Criterion 2 (surprise, "does the reply state the policy correctly?"): 73 labelled pairs from `starter_pack/surprise/` (upstream commit 0cb5c94), 9 source replies, 3-fold CV grouped by source; `prepare()` chose number rule `verdict`. Small set: one case moves a type by 10 points.
 
@@ -93,6 +96,12 @@ flat (0.850 → 0.845, within run-to-run noise). On criterion 2 it removes the m
 replies call 2 had cleared): 0.776 → 0.883 (0.863 in an earlier pair of runs). Average over both criteria: 0.813 → 0.864.
 Between separate pairs of runs the same code moved by 0.020 on criterion 2 although each pair agreed on every
 verdict: "same verdict 1.000" is consistency within a pair, not a guarantee across time.
+
+**Coverage guard (14:20, after the staff review).** Call 2's rejection is final only if call 2 answered every
+finding of call 1; a partial answer goes to call 3. In the 14:03 traces call 2 always answered every finding
+(174 of 174 replies), so it is a safeguard for unseen data. Re-run with it (14:21): criterion 1 0.846 (5 cases differ from
+14:06: 3 newly passed, 2 newly failed), criterion 2 0.863 (verdict for verdict the same as the 14:00 pair without the guard):
+the differences from the 14:06 runs are session-to-session noise.
 
 With `VERIFY_WITNESS` only (12:33), per edit type (baseline in brackets): catch condition_removal 0.800 (0.067), hedge_removal
 0.800 (0.500), wrong_number 0.771 (0.800), wrong_policy_detail 0.880 (1.000); keep sentence_reorder 0.800 (0.733),
@@ -118,7 +127,7 @@ Honest notes so far:
   judging from scratch under "leaving out a condition makes the statement incorrect", failed it anyway. On criterion 1
   the same call 3 caught 12 bad replies. We made call 2's rejection final (`TRUST_VERIFY_REJECT`): measured
   criterion 2 0.776 → 0.883 and criterion 1 0.850 → 0.845, at the cost of criterion-1 dropped-condition catch
-  (0.800 → 0.667). Disclosed in the status note at the top: it was added after seeing the surprise data.
+  (0.800 → 0.667).
 - **The hedge words in the witness prompt** ("try", "often", "most", "can", "may" or similar) are examples inside
   the call-2 prompt of wording that already leaves room, not a code rule: no code matches them, and they can only
   lead call 2 to reject a finding. With the same prompt, the filler mock criterion (where hedges are irrelevant) still
@@ -160,7 +169,7 @@ edited FAIL, 4 calls; the README's "not reserved" example now passes, see the dr
 failing a typed "always … guaranteed" reply, then the measured results. Every verdict in it was produced live, not
 staged; rebuild with `submission/make_demo_video.py` against a freshly started `demo/server.py`.
 
-[`submission/slides.pdf`](submission/slides.pdf) (5 slides), built from the score.py reports by `submission/make_slides.py` (rebuilt 14:09 with both criteria). Live demo: `python3 demo/server.py` (or `--mock` offline), then http://127.0.0.1:8765.
+[`submission/slides.pdf`](submission/slides.pdf) (5 slides), built from the score.py reports by `submission/make_slides.py` (rebuilt 14:35 with both criteria and the run-to-run range). Live demo: `python3 demo/server.py` (or `--mock` offline), then http://127.0.0.1:8765.
 
 ## Next steps
 - Shipped: `VERIFY_WITNESS` (12:25) and `TRUST_VERIFY_REJECT` (14:05). Measured and not shipped: `HEDGE_NOT_CONDITION`

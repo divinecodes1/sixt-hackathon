@@ -36,4 +36,14 @@ for i in "${!pids[@]}"; do
   wait "${pids[$i]}" || { echo "FAILED: ${names[$i]} (see $OUT/${names[$i]}.log)"; fail=1; }
 done
 [ "$fail" = 0 ] || exit 1
+# Every scored log must show temperature 0 kept and only claude-haiku-4.5 (run_judge.py prints this line).
+for n in criterion1_run1 criterion2_run1 criterion1_run2 criterion2_run2; do
+  line="$(grep -h "temperature_dropped" "$OUT/$n.log" | tail -1)"
+  echo "$n: $line"
+  case "$line" in
+    *"temperature_dropped 0,"*"['claude-haiku-4.5']"*) ;;
+    *) echo "WARNING: $n did not keep temperature 0 with claude-haiku-4.5 only: check $OUT/$n.log"; fail=1 ;;
+  esac
+done
+[ "$fail" = 0 ] || exit 1
 echo "Done. Commit and push Project_3/submission/criterion*_run*.csv"

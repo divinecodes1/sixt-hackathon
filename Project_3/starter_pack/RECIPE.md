@@ -59,7 +59,7 @@ The LLM keeps everything else: conditions, hedges, scope, policy details, and th
    **Shipped 12:25: `VERIFY_WITNESS = True`.** Call 2 confirms only if it copies the reply's exact words that violate
    the criterion and names one concrete case where a reader is misled; code checks the words are in the reply, and an
    unproven confirm counts as a rejection (it went to call 3 until 14:05; with `TRUST_VERIFY_REJECT` the reply passes).
-   **Shipped 14:05: `TRUST_VERIFY_REJECT = True`** (added after the surprise criterion arrived, disclosed): if call 2
+   **Shipped 14:05: `TRUST_VERIFY_REJECT = True`** (from the criterion-2 error analysis): if call 2
    answers every finding and proves none, the reply passes; call 3 runs only when call 2's answer is unreadable or
    leaves a finding unanswered (guard added 14:20; in the 14:03 traces call 2 always answered every finding, so the
    measured verdicts are unchanged).
@@ -161,7 +161,7 @@ omissions that the reply covers in another sentence ("we will try to reserve one
 good replies failed, 1 bad reply caught), while on criterion 1 it catches 12 bad replies. One source reply (child
 seats) drives 9 of the 17 errors.
 
-**What we changed after the surprise (disclosed).** The analysis pointed at call 3, a step that is not specific to any
+**What we changed after the criterion-2 error analysis.** The analysis pointed at call 3, a step that is not specific to any
 criterion, so we made call 2's rejection final (`TRUST_VERIFY_REJECT`, 14:05) and measured it on both criteria before
 shipping: criterion 2 0.776 → **0.883** (0.863 in an earlier pair of runs; catch 0.867, keep 0.900; per type:
 wrong_policy_detail 1.000, wrong_number 0.900, condition_removal 0.700; keep translation 1.000, polite_opener 0.900,

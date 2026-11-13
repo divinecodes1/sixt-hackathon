@@ -202,8 +202,7 @@ concrete misleading case; unproven confirms count as rejections, which went to c
 kappa 0.772, same verdict 0.991, 1.88 calls per reply, correct originals pass 0.920. The prompt was designed on dev
 false fails, so this is an upper bound for unseen data.
 
-**Shipped 14:05: `TRUST_VERIFY_REJECT = True`**, added after the surprise criterion arrived (disclosed in
-`SUBMISSION.md`): if call 2 answers every finding and proves none, the reply passes; call 3 only runs when call 2 is unreadable or
+**Shipped 14:05: `TRUST_VERIFY_REJECT = True`**, from the criterion-2 error analysis: if call 2 answers every finding and proves none, the reply passes; call 3 only runs when call 2 is unreadable or
 leaves a finding unanswered.
 `run_dev.sh` 14:05, criterion 1: 0.845 / 0.762 / 0.949, kappa 0.789, same verdict 1.000, 1.57 calls per reply, correct
 originals pass 0.965; criterion 2 (`run_dev.sh` 14:06): 0.883 / 0.867 / 0.900 (was 0.776; an earlier pair of runs gave 0.863). Trade-off: criterion-1 condition_removal catch

@@ -17,9 +17,11 @@ RES = os.path.join(P3, "results")
 # same recipe before both call-2 changes (run A, 11:23), to show what they bought.
 BASELINE = os.path.join(P3, "starter_pack", "baseline_report.txt")
 OURS = [("Ours, shipped", os.path.join(RES, "dev_pairs_report.txt")),
-        ("Ours, before call-2 changes", os.path.join(RES, "exp_base_dev_dev_pairs_report.txt"))]
+        ("Ours, before 12:25", os.path.join(RES, "exp_base_dev_dev_pairs_report.txt"))]
 C2_OURS = os.path.join(RES, "c2_dev_pairs_report.txt")            # written by run_dev.sh on the surprise criterion
 C2_BASE = os.path.join(RES, "c2_vs_baseline_report.txt")          # score.py ... --baseline (optional)
+C2_UNCHANGED = os.path.join(RES, "c2_unchanged_vs_baseline_report.txt")  # the judge before 14:05, run on criterion 2
+REPEATS = [os.path.join(RES, "guard_c1_report.txt"), os.path.join(RES, "guard_c2_report.txt")]  # same judge, 14:21
 REPO = "github.com/divinecodes1/sixt-hackathon"
 
 ORANGE, GREY, DARK = "#ff5f00", "#9a9a9a", "#1a1a1a"
@@ -33,7 +35,10 @@ def parse(path: str) -> dict | None:
     for key, pat in [("combined", r"COMBINED \(the score\)\s+([\d.]+)"), ("catch", r"macro catch\s+([\d.]+)"),
                      ("keep", r"macro keep\s+([\d.]+)"), ("kappa", r"kappa vs construction\s+([\d.]+)"),
                      ("same", r"same verdict ([\d.]+)"), ("orig_pass", r"original pass ([\d.]+)"),
-                     ("base_combined", r"COMBINED \(the score\)\s+[\d.]+\s+\(baseline ([\d.]+)")]:
+                     ("base_combined", r"COMBINED \(the score\)\s+[\d.]+\s+\(baseline ([\d.]+)"),
+                     ("base_catch", r"macro catch\s+[\d.]+\s+\(baseline ([\d.]+)"),
+                     ("base_keep", r"macro keep\s+[\d.]+\s+\(baseline ([\d.]+)"),
+                     ("base_kappa", r"kappa vs construction\s+[\d.]+\s+\(baseline ([\d.]+)")]:
         m = re.search(pat, text)
         if m:
             out[key] = float(m.group(1))
@@ -92,15 +97,15 @@ PIPELINE = f"""<svg viewBox="0 0 1150 250" width="1150" height="250" font-family
 <text x="830" y="105" font-weight="bold" fill="#fff">Call 2</text><text x="830" y="130" fill="#fff">verify suspected</text>
 <text x="830" y="152" fill="#fff">fails only</text>
 <rect x="970" y="70" width="180" height="100" rx="10" fill="{ORANGE}" opacity="0.65"/>
-<text x="1060" y="105" font-weight="bold" fill="#fff">Call 3</text><text x="1060" y="130" fill="#fff">tie-break only</text>
-<text x="1060" y="152" fill="#fff">if 1 and 2 disagree</text>
+<text x="1060" y="105" font-weight="bold" fill="#fff">Call 3</text><text x="1060" y="130" fill="#fff">fallback only</text>
+<text x="1060" y="152" fill="#fff">if call 2 unreadable</text>
 </g>
 <g stroke="{DARK}" stroke-width="2" marker-end="url(#a)">
 <line x1="190" y1="120" x2="236" y2="120"/><line x1="430" y1="120" x2="476" y2="120"/>
 <line x1="690" y1="120" x2="736" y2="120"/><line x1="920" y1="120" x2="966" y2="120"/></g>
 <g font-size="16" fill="{DARK}" text-anchor="middle">
 <text x="335" y="205">unknown number → FAIL</text><text x="585" y="205">no finding → PASS (1 call)</text>
-<text x="830" y="205">confirmed → FAIL</text><text x="1060" y="205">verdict decided</text></g>
+<text x="830" y="205">confirmed → FAIL · none → PASS</text><text x="1060" y="205">verdict decided</text></g>
 <text x="575" y="30" font-size="18" text-anchor="middle" fill="{DARK}">verdict computed in code · one reply per call ·
 no state · ≤ 3 calls · claude-haiku-4.5, temperature 0</text>
 </svg>"""
@@ -124,14 +129,26 @@ def main() -> None:
                   f"</td><td>{f3(r.get('keep'))}</td><td>{f3(r.get('kappa'))}</td><td>{f3(r.get('same'))}</td></tr>"
                   for c, j, r in rows)
     if c2:
-        c2_base = c2b.get("base_combined") if c2b else None
-        trs += (f"<tr><td>2</td><td>Baseline</td><td>{f3(c2_base)}</td><td colspan=4>"
-                f"{'' if c2_base is not None else 'pending'}</td></tr>"
-                f"<tr><td>2</td><td>Ours, unchanged</td><td>{f3(c2['combined'])}</td><td>{f3(c2.get('catch'))}"
+        b = c2b or {}
+        trs += (f"<tr><td>2</td><td>Baseline</td><td>{f3(b.get('base_combined'))}</td><td>{f3(b.get('base_catch'))}"
+                f"</td><td>{f3(b.get('base_keep'))}</td><td>{f3(b.get('base_kappa'))}</td><td>n/a</td></tr>")
+        un = parse(C2_UNCHANGED)
+        if un:
+            trs += (f"<tr><td>2</td><td>Ours, before 14:05</td><td>{f3(un['combined'])}</td>"
+                    f"<td>{f3(un.get('catch'))}</td><td>{f3(un.get('keep'))}</td><td>{f3(un.get('kappa'))}</td>"
+                    f"<td>n/a</td></tr>")
+        trs += (f"<tr><td>2</td><td>Ours, shipped</td><td>{f3(c2['combined'])}</td><td>{f3(c2.get('catch'))}"
                 f"</td><td>{f3(c2.get('keep'))}</td><td>{f3(c2.get('kappa'))}</td><td>{f3(c2.get('same'))}</td></tr>")
     else:
         trs += '<tr class="pending"><td>2</td><td colspan=6>runs on the new criterion at 14:30, code unchanged</td></tr>'
 
+    rep = [parse(p) for p in REPEATS]
+    repeat_note = ""
+    if c2 and all(rep):
+        c1_lo, c1_hi = sorted([runs[0][1]["combined"], rep[0]["combined"]])
+        c2_lo, c2_hi = sorted([c2["combined"], rep[1]["combined"]])
+        repeat_note = (f" <b>Noise:</b> a second pair of runs of the shipped judge gave criterion 1 {f3(c1_lo)}–{f3(c1_hi)},"
+                       f" criterion 2 {f3(c2_lo)}–{f3(c2_hi)}.")
     cond_base = base["types"].get("condition_removal", {}).get("catch", "n/a")
     shipped = runs[0][1]
     cond_ours = shipped["types"].get("condition_removal", {}).get("catch", "n/a")
@@ -152,7 +169,7 @@ p, li {{ font-size: 18pt; line-height: 1.35; }} li {{ margin-bottom: 6px; }}
 .foot {{ position: absolute; bottom: 0.35in; left: 0.8in; right: 0.8in; font-size: 12pt; color: #777;
         border-top: 1px solid #ddd; padding-top: 6px; }}
 .big {{ font-size: 54pt; font-weight: bold; color: {ORANGE}; }}
-table {{ border-collapse: collapse; font-size: 13pt; white-space: nowrap; }} td, th {{ padding: 4px 7px; border-bottom: 1px solid #ddd; text-align: left; }}
+table {{ border-collapse: collapse; font-size: 12pt; white-space: nowrap; }} td, th {{ padding: 3px 5px; border-bottom: 1px solid #ddd; text-align: left; }}
 th {{ color: #555; font-weight: normal; }} tr.pending td {{ color: #999; font-style: italic; }}
 .cols {{ display: flex; gap: 0.4in; align-items: flex-start; }}
 </style></head><body>
@@ -185,10 +202,10 @@ checked in code. Nothing about the criterion is hard-coded; examples and rule mo
 <div class="kicker">METHOD</div>
 <h1>Code for facts, the LLM for meaning, <span class="accent">code for the verdict</span></h1>
 {PIPELINE}
-<ul>
-<li><b>Self-validating rule:</b> a number not in the policy fails the reply, only if <code>prepare()</code> sees it never fire on a pass example of the current criterion; otherwise hint or off.</li>
-<li><b>Verify only suspected fails</b> in a fresh context. Call 2 may confirm a fail only by quoting the reply's exact words (checked in code) and naming a concrete misleading case. If it proves none, the reply passes; a third call only if call 2's answer is unreadable. At most 2 calls in practice.</li>
-<li>Same code for the surprise criterion: only <code>--criterion</code> and <code>--dev</code> change.</li>
+<ul style="margin-top:6px">
+<li style="font-size:16pt"><b>Self-validating rule:</b> a number not in the policy fails the reply, only if <code>prepare()</code> sees it never fire on a pass example of the current criterion; otherwise hint or off.</li>
+<li style="font-size:16pt"><b>Verify only suspected fails</b> in a fresh context. Call 2 may confirm a fail only by quoting the reply's exact words (checked in code) and naming a concrete misleading case. If it proves none, the reply passes; a third call only if call 2's answer is unreadable or incomplete.</li>
+<li style="font-size:16pt">Same code for the surprise criterion: only <code>--criterion</code> and <code>--dev</code> change.</li>
 </ul>
 <div class="foot">starter_pack/final_judge.py · recipe: starter_pack/RECIPE.md</div>
 </section>
@@ -200,9 +217,9 @@ checked in code. Nothing about the criterion is hard-coded; examples and rule mo
 <div style="flex:1"><table><tr><th>crit.</th><th>judge</th><th>combined</th><th>catch</th><th>keep</th><th>kappa</th><th>repeat</th></tr>{trs}</table>
 <p style="font-size:13pt"><b>What fixed keep:</b> call 2 must prove a violation with the reply's own words, and an
 unproven finding passes (correct original passed {orig_pass}, baseline {f3(base.get('orig_pass'))}).
-<b>Disclosed:</b> the last change (an unproven finding passes, no call 3) was made after the surprise criterion arrived and
-measured on both; it costs some criterion-1 catch on dropped conditions. <b>Caveat:</b> both call-2 changes were designed
-on dev errors, so dev gains are an upper bound. “repeat” = same verdict on two runs.</p></div></div>
+<b>Trade-off:</b> the 14:05 change (an unproven finding passes, no call 3) came from the criterion-2 error analysis and
+was measured on both criteria; it costs some criterion-1 catch on dropped conditions. <b>Caveat:</b> both call-2 changes were designed
+on dev errors, so dev gains are an upper bound. “repeat” = same verdict on two runs.{repeat_note}</p></div></div>
 <div class="foot">Sources: starter_pack/baseline_report.txt, results/dev_pairs_report.txt (shipped), results/exp_base_dev_dev_pairs_report.txt{', results/c2_dev_pairs_report.txt' if c2 else ''}</div>
 </section>
 
@@ -213,11 +230,12 @@ on dev errors, so dev gains are an upper bound. “repeat” = same verdict on t
 <li>Run every candidate chatbot version against the policy before release; a reply that drops a condition or raises
 certainty is blocked.</li>
 <li>Each fail carries the quoted reply words and the policy clause, so a reviewer decides in seconds.</li>
-<li>The recipe takes any new criterion plus a few labelled examples, with no code change (shown live on the surprise criterion).</li>
+<li>The recipe takes any new criterion plus a few labelled examples, through <code>--criterion</code> and <code>--dev</code>, with no criterion-specific code (run on the surprise criterion).</li>
 </ul>
 <h2>Next steps</h2>
 <ul>
-<li>Close the gap on wrong numbers and wrong policy details, where the baseline still catches slightly more.</li>
+<li>Win back dropped-condition catch on criterion 1 (0.800 before the 14:05 change, 0.667 now) without the call-3 false fails.</li>
+<li>Close the gap on wrong policy details, where the baseline still catches more on criterion 1.</li>
 <li>Retrieve the closest labelled examples per reply instead of a fixed set.</li>
 <li>Measure transfer on edit types not in dev (leave-one-edit-type-out).</li>
 </ul>

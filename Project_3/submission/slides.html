@@ -13,7 +13,7 @@ p, li { font-size: 18pt; line-height: 1.35; } li { margin-bottom: 6px; }
 .foot { position: absolute; bottom: 0.35in; left: 0.8in; right: 0.8in; font-size: 12pt; color: #777;
         border-top: 1px solid #ddd; padding-top: 6px; }
 .big { font-size: 54pt; font-weight: bold; color: #ff5f00; }
-table { border-collapse: collapse; font-size: 13pt; white-space: nowrap; } td, th { padding: 4px 7px; border-bottom: 1px solid #ddd; text-align: left; }
+table { border-collapse: collapse; font-size: 12pt; white-space: nowrap; } td, th { padding: 3px 5px; border-bottom: 1px solid #ddd; text-align: left; }
 th { color: #555; font-weight: normal; } tr.pending td { color: #999; font-style: italic; }
 .cols { display: flex; gap: 0.4in; align-items: flex-start; }
 </style></head><body>
@@ -63,22 +63,22 @@ checked in code. Nothing about the criterion is hard-coded; examples and rule mo
 <text x="830" y="105" font-weight="bold" fill="#fff">Call 2</text><text x="830" y="130" fill="#fff">verify suspected</text>
 <text x="830" y="152" fill="#fff">fails only</text>
 <rect x="970" y="70" width="180" height="100" rx="10" fill="#ff5f00" opacity="0.65"/>
-<text x="1060" y="105" font-weight="bold" fill="#fff">Call 3</text><text x="1060" y="130" fill="#fff">tie-break only</text>
-<text x="1060" y="152" fill="#fff">if 1 and 2 disagree</text>
+<text x="1060" y="105" font-weight="bold" fill="#fff">Call 3</text><text x="1060" y="130" fill="#fff">fallback only</text>
+<text x="1060" y="152" fill="#fff">if call 2 unreadable</text>
 </g>
 <g stroke="#1a1a1a" stroke-width="2" marker-end="url(#a)">
 <line x1="190" y1="120" x2="236" y2="120"/><line x1="430" y1="120" x2="476" y2="120"/>
 <line x1="690" y1="120" x2="736" y2="120"/><line x1="920" y1="120" x2="966" y2="120"/></g>
 <g font-size="16" fill="#1a1a1a" text-anchor="middle">
 <text x="335" y="205">unknown number → FAIL</text><text x="585" y="205">no finding → PASS (1 call)</text>
-<text x="830" y="205">confirmed → FAIL</text><text x="1060" y="205">verdict decided</text></g>
+<text x="830" y="205">confirmed → FAIL · none → PASS</text><text x="1060" y="205">verdict decided</text></g>
 <text x="575" y="30" font-size="18" text-anchor="middle" fill="#1a1a1a">verdict computed in code · one reply per call ·
 no state · ≤ 3 calls · claude-haiku-4.5, temperature 0</text>
 </svg>
-<ul>
-<li><b>Self-validating rule:</b> a number not in the policy fails the reply, only if <code>prepare()</code> sees it never fire on a pass example of the current criterion; otherwise hint or off.</li>
-<li><b>Verify only suspected fails</b> in a fresh context. Call 2 may confirm a fail only by quoting the reply's exact words (checked in code) and naming a concrete misleading case. If it proves none, the reply passes; a third call only if call 2's answer is unreadable. At most 2 calls in practice.</li>
-<li>Same code for the surprise criterion: only <code>--criterion</code> and <code>--dev</code> change.</li>
+<ul style="margin-top:6px">
+<li style="font-size:16pt"><b>Self-validating rule:</b> a number not in the policy fails the reply, only if <code>prepare()</code> sees it never fire on a pass example of the current criterion; otherwise hint or off.</li>
+<li style="font-size:16pt"><b>Verify only suspected fails</b> in a fresh context. Call 2 may confirm a fail only by quoting the reply's exact words (checked in code) and naming a concrete misleading case. If it proves none, the reply passes; a third call only if call 2's answer is unreadable or incomplete.</li>
+<li style="font-size:16pt">Same code for the surprise criterion: only <code>--criterion</code> and <code>--dev</code> change.</li>
 </ul>
 <div class="foot">starter_pack/final_judge.py · recipe: starter_pack/RECIPE.md</div>
 </section>
@@ -86,13 +86,13 @@ no state · ≤ 3 calls · claude-haiku-4.5, temperature 0</text>
 <section>
 <div class="kicker">RESULTS · DEV, GROUPED CROSS-VALIDATION, claude-haiku-4.5</div>
 <h1>More bad replies caught, <span class="accent">and more good replies kept</span></h1>
-<div class="cols"><div><svg viewBox="0 0 560 330" width="560" height="330" role="img" font-family="Arial"><line x1="40" y1="284" x2="560" y2="284" stroke="#ccc"/><rect x="55.0" y="107.0" width="41.8" height="177.0" fill="#9a9a9a"/><text x="75.9" y="101.0" font-size="15" text-anchor="middle" fill="#1a1a1a">0.70</text><rect x="102.8" y="69.4" width="41.8" height="214.6" fill="#ff5f00"/><text x="123.7" y="63.4" font-size="15" text-anchor="middle" fill="#1a1a1a">0.84</text><rect x="150.6" y="92.5" width="41.8" height="191.5" fill="#ffa366"/><text x="171.4" y="86.5" font-size="15" text-anchor="middle" fill="#1a1a1a">0.75</text><text x="126.7" y="314" font-size="18" text-anchor="middle" fill="#1a1a1a">combined</text><rect x="228.3" y="133.6" width="41.8" height="150.4" fill="#9a9a9a"/><text x="249.2" y="127.6" font-size="15" text-anchor="middle" fill="#1a1a1a">0.59</text><rect x="276.1" y="90.5" width="41.8" height="193.5" fill="#ff5f00"/><text x="297.0" y="84.5" font-size="15" text-anchor="middle" fill="#1a1a1a">0.76</text><rect x="323.9" y="93.5" width="41.8" height="190.5" fill="#ffa366"/><text x="344.8" y="87.5" font-size="15" text-anchor="middle" fill="#1a1a1a">0.75</text><text x="300.0" y="314" font-size="18" text-anchor="middle" fill="#1a1a1a">macro catch</text><rect x="401.7" y="68.9" width="41.8" height="215.1" fill="#9a9a9a"/><text x="422.6" y="62.9" font-size="15" text-anchor="middle" fill="#1a1a1a">0.85</text><rect x="449.4" y="43.0" width="41.8" height="241.0" fill="#ff5f00"/><text x="470.3" y="37.0" font-size="15" text-anchor="middle" fill="#1a1a1a">0.95</text><rect x="497.2" y="91.5" width="41.8" height="192.5" fill="#ffa366"/><text x="518.1" y="85.5" font-size="15" text-anchor="middle" fill="#1a1a1a">0.76</text><text x="473.3" y="314" font-size="18" text-anchor="middle" fill="#1a1a1a">macro keep</text><rect x="40" y="2" width="14" height="14" fill="#9a9a9a"/><text x="60" y="14" font-size="15" fill="#1a1a1a">Baseline</text><rect x="138.0" y="2" width="14" height="14" fill="#ff5f00"/><text x="158.0" y="14" font-size="15" fill="#1a1a1a">Ours, shipped</text><rect x="278.5" y="2" width="14" height="14" fill="#ffa366"/><text x="298.5" y="14" font-size="15" fill="#1a1a1a">Ours, before call-2 changes</text></svg></div>
-<div style="flex:1"><table><tr><th>crit.</th><th>judge</th><th>combined</th><th>catch</th><th>keep</th><th>kappa</th><th>repeat</th></tr><tr><td>1</td><td>Baseline</td><td>0.697</td><td>0.592</td><td>0.847</td><td>0.531</td><td>n/a</td></tr><tr><td>1</td><td>Ours, shipped</td><td>0.845</td><td>0.762</td><td>0.949</td><td>0.789</td><td>1.000</td></tr><tr><td>1</td><td>Ours, before call-2 changes</td><td>0.754</td><td>0.750</td><td>0.758</td><td>0.623</td><td>0.974</td></tr><tr><td>2</td><td>Baseline</td><td>0.652</td><td colspan=4></td></tr><tr><td>2</td><td>Ours, unchanged</td><td>0.883</td><td>0.867</td><td>0.900</td><td>0.788</td><td>1.000</td></tr></table>
+<div class="cols"><div><svg viewBox="0 0 560 330" width="560" height="330" role="img" font-family="Arial"><line x1="40" y1="284" x2="560" y2="284" stroke="#ccc"/><rect x="55.0" y="107.0" width="41.8" height="177.0" fill="#9a9a9a"/><text x="75.9" y="101.0" font-size="15" text-anchor="middle" fill="#1a1a1a">0.70</text><rect x="102.8" y="69.4" width="41.8" height="214.6" fill="#ff5f00"/><text x="123.7" y="63.4" font-size="15" text-anchor="middle" fill="#1a1a1a">0.84</text><rect x="150.6" y="92.5" width="41.8" height="191.5" fill="#ffa366"/><text x="171.4" y="86.5" font-size="15" text-anchor="middle" fill="#1a1a1a">0.75</text><text x="126.7" y="314" font-size="18" text-anchor="middle" fill="#1a1a1a">combined</text><rect x="228.3" y="133.6" width="41.8" height="150.4" fill="#9a9a9a"/><text x="249.2" y="127.6" font-size="15" text-anchor="middle" fill="#1a1a1a">0.59</text><rect x="276.1" y="90.5" width="41.8" height="193.5" fill="#ff5f00"/><text x="297.0" y="84.5" font-size="15" text-anchor="middle" fill="#1a1a1a">0.76</text><rect x="323.9" y="93.5" width="41.8" height="190.5" fill="#ffa366"/><text x="344.8" y="87.5" font-size="15" text-anchor="middle" fill="#1a1a1a">0.75</text><text x="300.0" y="314" font-size="18" text-anchor="middle" fill="#1a1a1a">macro catch</text><rect x="401.7" y="68.9" width="41.8" height="215.1" fill="#9a9a9a"/><text x="422.6" y="62.9" font-size="15" text-anchor="middle" fill="#1a1a1a">0.85</text><rect x="449.4" y="43.0" width="41.8" height="241.0" fill="#ff5f00"/><text x="470.3" y="37.0" font-size="15" text-anchor="middle" fill="#1a1a1a">0.95</text><rect x="497.2" y="91.5" width="41.8" height="192.5" fill="#ffa366"/><text x="518.1" y="85.5" font-size="15" text-anchor="middle" fill="#1a1a1a">0.76</text><text x="473.3" y="314" font-size="18" text-anchor="middle" fill="#1a1a1a">macro keep</text><rect x="40" y="2" width="14" height="14" fill="#9a9a9a"/><text x="60" y="14" font-size="15" fill="#1a1a1a">Baseline</text><rect x="138.0" y="2" width="14" height="14" fill="#ff5f00"/><text x="158.0" y="14" font-size="15" fill="#1a1a1a">Ours, shipped</text><rect x="278.5" y="2" width="14" height="14" fill="#ffa366"/><text x="298.5" y="14" font-size="15" fill="#1a1a1a">Ours, before 12:25</text></svg></div>
+<div style="flex:1"><table><tr><th>crit.</th><th>judge</th><th>combined</th><th>catch</th><th>keep</th><th>kappa</th><th>repeat</th></tr><tr><td>1</td><td>Baseline</td><td>0.697</td><td>0.592</td><td>0.847</td><td>0.531</td><td>n/a</td></tr><tr><td>1</td><td>Ours, shipped</td><td>0.845</td><td>0.762</td><td>0.949</td><td>0.789</td><td>1.000</td></tr><tr><td>1</td><td>Ours, before 12:25</td><td>0.754</td><td>0.750</td><td>0.758</td><td>0.623</td><td>0.974</td></tr><tr><td>2</td><td>Baseline</td><td>0.652</td><td>0.600</td><td>0.715</td><td>0.394</td><td>n/a</td></tr><tr><td>2</td><td>Ours, before 14:05</td><td>0.776</td><td>0.767</td><td>0.785</td><td>0.657</td><td>n/a</td></tr><tr><td>2</td><td>Ours, shipped</td><td>0.883</td><td>0.867</td><td>0.900</td><td>0.788</td><td>1.000</td></tr></table>
 <p style="font-size:13pt"><b>What fixed keep:</b> call 2 must prove a violation with the reply's own words, and an
 unproven finding passes (correct original passed 0.805 → 0.965, baseline 0.858).
-<b>Disclosed:</b> the last change (an unproven finding passes, no call 3) was made after the surprise criterion arrived and
-measured on both; it costs some criterion-1 catch on dropped conditions. <b>Caveat:</b> both call-2 changes were designed
-on dev errors, so dev gains are an upper bound. “repeat” = same verdict on two runs.</p></div></div>
+<b>Trade-off:</b> the 14:05 change (an unproven finding passes, no call 3) came from the criterion-2 error analysis and
+was measured on both criteria; it costs some criterion-1 catch on dropped conditions. <b>Caveat:</b> both call-2 changes were designed
+on dev errors, so dev gains are an upper bound. “repeat” = same verdict on two runs. <b>Noise:</b> a second pair of runs of the shipped judge gave criterion 1 0.845–0.846, criterion 2 0.863–0.883.</p></div></div>
 <div class="foot">Sources: starter_pack/baseline_report.txt, results/dev_pairs_report.txt (shipped), results/exp_base_dev_dev_pairs_report.txt, results/c2_dev_pairs_report.txt</div>
 </section>
 
@@ -103,11 +103,12 @@ on dev errors, so dev gains are an upper bound. “repeat” = same verdict on t
 <li>Run every candidate chatbot version against the policy before release; a reply that drops a condition or raises
 certainty is blocked.</li>
 <li>Each fail carries the quoted reply words and the policy clause, so a reviewer decides in seconds.</li>
-<li>The recipe takes any new criterion plus a few labelled examples, with no code change (shown live on the surprise criterion).</li>
+<li>The recipe takes any new criterion plus a few labelled examples, through <code>--criterion</code> and <code>--dev</code>, with no criterion-specific code (run on the surprise criterion).</li>
 </ul>
 <h2>Next steps</h2>
 <ul>
-<li>Close the gap on wrong numbers and wrong policy details, where the baseline still catches slightly more.</li>
+<li>Win back dropped-condition catch on criterion 1 (0.800 before the 14:05 change, 0.667 now) without the call-3 false fails.</li>
+<li>Close the gap on wrong policy details, where the baseline still catches more on criterion 1.</li>
 <li>Retrieve the closest labelled examples per reply instead of a fixed set.</li>
 <li>Measure transfer on edit types not in dev (leave-one-edit-type-out).</li>
 </ul>
