@@ -1,0 +1,17 @@
+16 variant(s) x 1 run(s): 2320 replies to judge, 1-3 LLM calls each
+  CKHV        all four evidence switches
+  C_evidence  kept conditions must quote the reply; unproven ones go to call 2
+  E_contrast  minimal-pair examples make the pass/fail boundary visible
+  H_hedge     certainty from the original words; quantities to scope; gloss last
+  J_adjudicate call 3 weighs both reviewers' arguments instead of judging afresh
+  K_clauses   numbered policy clauses; cited clause text checked in code
+  PE          prefill + contrast examples
+  PER         all three
+  P_prefill   prefilled <json> removes preambles and parse failures
+  R_hint      rule as hint only: fewer false fails on stricter numbers
+  SJ          second look + adjudication
+  S_second_look call 2 re-checks passes whose own fields show a policy difference
+  T_think1k   extended thinking on call 1; costs temperature 0
+  T_think3k   more thinking on call 1
+  V_deanchor  call 2 sees where to look, not the first reviewer's conclusion
+  base        current final_judge.py

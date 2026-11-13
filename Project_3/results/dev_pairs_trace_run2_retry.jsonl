@@ -1,0 +1,147 @@
+{"reply": "c7c992910704", "lang": "fr", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "bc9f265d9e51", "lang": "it", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "4147ee3d4088", "lang": "de", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "872201e80650", "lang": "en", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "7e9139936d21", "lang": "it", "calls": 1, "rule_numbers": ["59"], "path": "rule", "verdict": "fail"}
+{"reply": "0f6f127f9abb", "lang": "fr", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "743fd72bf022", "lang": "es", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "4e3ca18fa535", "lang": "de", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "94af3ba0c9a7", "lang": "it", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "4a314dd26c20", "lang": "es", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "d50bd900996a", "lang": "it", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "3054015fa089", "lang": "de", "calls": 1, "rule_numbers": ["59"], "path": "rule", "verdict": "fail"}
+{"reply": "f9eff6b5496d", "lang": "es", "calls": 3, "rule_numbers": [], "sources": ["call1"], "path": "verify_rejects>tiebreak", "verdict": "pass"}
+{"reply": "8260bc91f579", "lang": "es", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "841e22ab7f31", "lang": "it", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "2126e19a49e9", "lang": "fr", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "8e4b1f7fbb8d", "lang": "de", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "c3443e1d47fd", "lang": "es", "calls": 3, "rule_numbers": [], "sources": ["call1"], "path": "verify_rejects>tiebreak", "verdict": "pass"}
+{"reply": "166dfaf4b63c", "lang": "en", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "833bf916defc", "lang": "en", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "9d9e92dd58af", "lang": "fr", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "ef12b5c8b588", "lang": "es", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "23e9514804bf", "lang": "fr", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "1743d403a095", "lang": "de", "calls": 3, "rule_numbers": [], "sources": ["call1"], "path": "verify_rejects>tiebreak", "verdict": "pass"}
+{"reply": "95263e5a132d", "lang": "fr", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "d96d0cd73dcf", "lang": "en", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "96c210e26f29", "lang": "es", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "8aa2809dfcb3", "lang": "en", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "0ba6c8635b1f", "lang": "en", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "dfa8d2b1665f", "lang": "de", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "5eeb7ecbd323", "lang": "de", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "bff114a9dba9", "lang": "fr", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "caa8f2fa234c", "lang": "de", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "c381049a3f4f", "lang": "es", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "0d02a4ea9c84", "lang": "it", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "e9cc9de871e4", "lang": "en", "calls": 1, "rule_numbers": ["59"], "path": "rule", "verdict": "fail"}
+{"reply": "7b85aab2090f", "lang": "it", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "403e01609e4d", "lang": "de", "calls": 3, "rule_numbers": [], "sources": ["call1"], "path": "verify_rejects>tiebreak", "verdict": "pass"}
+{"reply": "11e7438b9314", "lang": "en", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "579ade9be499", "lang": "en", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "a31047805924", "lang": "it", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "0b0be655d304", "lang": "de", "calls": 3, "rule_numbers": [], "sources": ["call1"], "path": "verify_rejects>tiebreak", "verdict": "pass"}
+{"reply": "2981bd86aee2", "lang": "en", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "fafa8d3e7b16", "lang": "it", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "c5d18b4094d8", "lang": "es", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "673cc210ed44", "lang": "es", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "3774a3397ce2", "lang": "fr", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "a481836ae4d2", "lang": "fr", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "bc013f19a545", "lang": "en", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "039604a1a1cd", "lang": "it", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "7edd11160895", "lang": "es", "calls": 3, "rule_numbers": [], "sources": ["call1"], "path": "verify_rejects>tiebreak", "verdict": "fail"}
+{"reply": "0b3d8298f8c2", "lang": "it", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "8cda26e27f32", "lang": "fr", "calls": 3, "rule_numbers": [], "sources": ["call1"], "path": "verify_rejects>tiebreak", "verdict": "pass"}
+{"reply": "d97b14d784bc", "lang": "es", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "b52931b653f2", "lang": "de", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "ec1bb4e86504", "lang": "en", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "d2663fdcd856", "lang": "es", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "d1793b624701", "lang": "fr", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "57bd4d73fca4", "lang": "de", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "6d701d0c0c20", "lang": "en", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "d34eaf05facf", "lang": "de", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "f393b2df1890", "lang": "en", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "e9fb5229f4e0", "lang": "en", "calls": 3, "rule_numbers": [], "sources": ["call1"], "path": "verify_rejects>tiebreak", "verdict": "fail"}
+{"reply": "42d535b2df1c", "lang": "it", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "99b0f6a368b2", "lang": "es", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "3d8834eb4c4b", "lang": "it", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "f493c2fdb0d4", "lang": "de", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "057fb60fda90", "lang": "fr", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "7acfb13d5ba8", "lang": "fr", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "b79ede223d46", "lang": "es", "calls": 1, "rule_numbers": ["59"], "path": "rule", "verdict": "fail"}
+{"reply": "e451ddc156f8", "lang": "it", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "189120a73b83", "lang": "fr", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "5e1b3e017ab3", "lang": "de", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "2d164bf5febe", "lang": "it", "calls": 3, "rule_numbers": [], "sources": ["call1"], "path": "verify_rejects>tiebreak", "verdict": "pass"}
+{"reply": "13dfd9d047ee", "lang": "fr", "calls": 1, "rule_numbers": ["59"], "path": "rule", "verdict": "fail"}
+{"reply": "6684e0116bd4", "lang": "fr", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "7170a32079f9", "lang": "es", "calls": 1, "rule_numbers": ["4"], "path": "rule", "verdict": "fail"}
+{"reply": "0939570e7224", "lang": "fr", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "f96ba1d35484", "lang": "en", "calls": 1, "rule_numbers": ["40"], "path": "rule", "verdict": "fail"}
+{"reply": "030ca13bfb4a", "lang": "de", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "32a7143c13be", "lang": "it", "calls": 1, "rule_numbers": ["40"], "path": "rule", "verdict": "fail"}
+{"reply": "157273318658", "lang": "en", "calls": 2, "rule_numbers": ["8"], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "117fd64502cf", "lang": "it", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "9ae7187a2355", "lang": "de", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "1379edc36d10", "lang": "it", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "7bad24dcf869", "lang": "es", "calls": 3, "rule_numbers": [], "sources": ["call1"], "path": "verify_rejects>tiebreak", "verdict": "pass"}
+{"reply": "c388c09933f4", "lang": "es", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "4dcecf2fca97", "lang": "en", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "150a54d7f4bc", "lang": "de", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "9cc05af48270", "lang": "es", "calls": 3, "rule_numbers": [], "sources": ["call1"], "path": "verify_rejects>tiebreak", "verdict": "pass"}
+{"reply": "413b3e2f8699", "lang": "fr", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "87c8bfc833aa", "lang": "fr", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "b44d358777fd", "lang": "fr", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "92e86b2a9536", "lang": "de", "calls": 3, "rule_numbers": [], "sources": ["call1"], "path": "verify_rejects>tiebreak", "verdict": "fail"}
+{"reply": "ab4cb9342a61", "lang": "es", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "ca23d9829eb3", "lang": "it", "calls": 1, "rule_numbers": ["4"], "path": "rule", "verdict": "fail"}
+{"reply": "b79b888d0ba2", "lang": "en", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "819570a3793d", "lang": "it", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "e1cbff6e7c3f", "lang": "en", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "42f91e66bd48", "lang": "de", "calls": 3, "rule_numbers": [], "sources": ["call1"], "path": "verify_rejects>tiebreak", "verdict": "pass"}
+{"reply": "0f3124565180", "lang": "de", "calls": 2, "rule_numbers": ["8"], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "3929fd1dbda0", "lang": "de", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "b618d4c2890a", "lang": "de", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "40b18cad4692", "lang": "fr", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "d22ba42b84b8", "lang": "en", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "76a972146137", "lang": "fr", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "21977e3a292e", "lang": "en", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "b4857cdad48b", "lang": "it", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "d4e145c04fdd", "lang": "it", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "e50b2d0f556e", "lang": "en", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "03c067eb4185", "lang": "de", "calls": 3, "rule_numbers": [], "sources": ["call1"], "path": "verify_rejects>tiebreak", "verdict": "pass"}
+{"reply": "3d8624600f03", "lang": "it", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "30932d3775e4", "lang": "de", "calls": 3, "rule_numbers": [], "sources": ["call1"], "path": "verify_rejects>tiebreak", "verdict": "pass"}
+{"reply": "4dd83b5e59fa", "lang": "en", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "cec3d1351004", "lang": "de", "calls": 1, "rule_numbers": ["40"], "path": "rule", "verdict": "fail"}
+{"reply": "e3ebd9cdd808", "lang": "it", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "2f62fe527ca4", "lang": "fr", "calls": 3, "rule_numbers": [], "sources": ["call1"], "path": "verify_rejects>tiebreak", "verdict": "pass"}
+{"reply": "7c13d5563116", "lang": "es", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "39cac98d8054", "lang": "en", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "ea59f439b938", "lang": "es", "calls": 3, "rule_numbers": [], "sources": ["call1"], "path": "verify_rejects>tiebreak", "verdict": "pass"}
+{"reply": "ed0ec707b6de", "lang": "it", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "c2037de99c84", "lang": "en", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "4c80a2f169e8", "lang": "fr", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "29e15daf07cf", "lang": "en", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "b014ac5d1c45", "lang": "es", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "ec62fc7d254e", "lang": "es", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "e38b6263c246", "lang": "de", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "f9b41af265e2", "lang": "es", "calls": 2, "rule_numbers": ["8"], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "abecfe2b65c5", "lang": "en", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "d292d379db0f", "lang": "en", "calls": 1, "rule_numbers": ["4"], "path": "rule", "verdict": "fail"}
+{"reply": "0845ffac0f6d", "lang": "de", "calls": 2, "rule_numbers": ["4"], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "eb86175fe2fa", "lang": "de", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "34ee31d7fab4", "lang": "fr", "calls": 1, "rule_numbers": ["8"], "path": "rule", "verdict": "fail"}
+{"reply": "55807480c95b", "lang": "it", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "d637b665aded", "lang": "it", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "d10d8812cc6e", "lang": "it", "calls": 2, "rule_numbers": ["8"], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "d4519051d62b", "lang": "es", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "9bc27d69a7d2", "lang": "fr", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "c41c01a59276", "lang": "es", "calls": 1, "rule_numbers": ["40"], "path": "rule", "verdict": "fail"}
+{"reply": "3e2a74c5ceec", "lang": "es", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "794e261c1587", "lang": "it", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "6946e7af9c73", "lang": "de", "calls": 3, "rule_numbers": [], "sources": ["call1"], "path": "verify_rejects>tiebreak", "verdict": "fail"}
+{"reply": "65f6461e0dd9", "lang": "it", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "2da249eccc5b", "lang": "en", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "1bd9b86d1076", "lang": "es", "calls": 1, "rule_numbers": [], "path": "call1_pass", "verdict": "pass"}
+{"reply": "de21fa11843f", "lang": "fr", "calls": 2, "rule_numbers": [], "sources": ["call1"], "path": "call1_fail>verify_confirms", "verdict": "fail"}
+{"reply": "a0cbccaadf3f", "lang": "en", "calls": 3, "rule_numbers": [], "sources": ["call1"], "path": "verify_rejects>tiebreak", "verdict": "pass"}

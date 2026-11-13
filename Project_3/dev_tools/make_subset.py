@@ -1,13 +1,13 @@
-"""Write a small stratified dev subset for screening variants (default: 30 cases -> starter_pack/dev_pairs_30.jsonl).
+"""Write a small stratified dev subset for screening variants (e.g. --n 113 -> starter_pack/dev_pairs_113.jsonl).
 
 Stratified by edit type (half harmful, half harmless) and spread round-robin over source replies, deterministic.
 Screen variants on it with the full dev set as the example pool, so only the scored cases shrink:
 
     cd Project_3/starter_pack
     python3 ../dev_tools/make_subset.py
-    python3 ../dev_tools/experiments.py --variants base R_hint --pairs dev_pairs_30.jsonl
+    python3 ../dev_tools/experiments.py --variants base R_hint --pairs dev_pairs_113.jsonl
 
-One case is 3.3 points of catch or keep here: use it to drop clear losers, confirm winners on dev_pairs.jsonl.
+On 30 cases one case is 3.3 points of catch or keep: use it to drop clear losers, confirm winners on dev_pairs.jsonl.
 """
 import argparse
 import json
@@ -39,8 +39,13 @@ def main() -> None:
     for i, fam in enumerate(fams):
         n_fam = a.n // len(fams) + (1 if i < a.n % len(fams) else 0)
         types = sorted(fam_types[fam], key=lambda t: -len(by_type[t]))
-        for j, t in enumerate(types):
-            quota[t] = min(len(by_type[t]), n_fam // len(types) + (1 if j < n_fam % len(types) else 0))
+        for t in types:
+            quota[t] = 0
+        for _ in range(n_fam):  # one at a time to the type with the lowest quota that still has cases left
+            open_types = [t for t in types if quota[t] < len(by_type[t])]
+            if not open_types:
+                break
+            quota[min(open_types, key=lambda t: (quota[t], types.index(t)))] += 1
     # pick per type, preferring the least-used source reply so all sources stay covered
     used: dict[str, int] = defaultdict(int)
     picked: list[dict] = []

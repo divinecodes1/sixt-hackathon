@@ -6,7 +6,7 @@ appended to results/experiments.md; pick a winner there, then set it in final_ju
 
     cd Project_3/starter_pack
     python3 ../dev_tools/experiments.py --dry                                  # list variants, count replies
-    python3 ../dev_tools/experiments.py --variants base R_hint E_contrast      # 30-case screen (default)
+    python3 ../dev_tools/experiments.py --variants base R_hint E_contrast      # 113-case screen (default)
     python3 ../dev_tools/experiments.py --variants base P_prefill --pairs dev_pairs.jsonl --repeat
     python3 ../dev_tools/experiments.py --variants base R_hint --stress        # also the stress set
 
@@ -102,8 +102,8 @@ def replies(pairs: str) -> int:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--variants", nargs="+", default=["base"], choices=sorted(VARIANTS))
-    ap.add_argument("--pairs", default="dev_pairs_30.jsonl",
-                    help="scored cases (default: 30-case stratified screen, see make_subset.py)")
+    ap.add_argument("--pairs", default="dev_pairs_113.jsonl",
+                    help="scored cases (default: 113-case stratified screen, see make_subset.py)")
     ap.add_argument("--examples", default="dev_pairs.jsonl",
                     help="example pool for cross-validation (held-out sources removed per fold)")
     ap.add_argument("--stress", action="store_true", help="also score each variant on the stress set")
