@@ -50,6 +50,7 @@ VARIANTS = {
     "W_off": ({"VERIFY_WITNESS": "False"}, "control: the pre-12:25 default (plain call-2 prompt)"),
     "WX": ({"VERIFY_WITNESS": "True", "VERIFY_EXAMPLES": "True"}, "witness + labelled examples in call 2"),
     "Q_scoped_verify": ({"VERIFY_SCOPED": "True"}, "call 2: limitation stated anywhere counts; condition matters only for the promise it limits"),
+    "N_hedge_not_condition": ({"HEDGE_NOT_CONDITION": "True"}, "call 2: a certainty word does not state a dropped condition (on top of the shipped witness check)"),
     "CKHV": ({"CONDITION_EVIDENCE": "True", "CLAUSE_IDS": "True", "HEDGE_FROM_QUOTE": "True",
               "VERIFY_DEANCHOR": "True"}, "all four evidence switches"),
 }

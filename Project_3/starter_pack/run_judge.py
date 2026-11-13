@@ -140,6 +140,11 @@ def main(argv: list[str] | None = None) -> None:
         for cid in sorted(res):
             w.writerow([cid, *res[cid]])
     print(f"wrote {len(res)} verdict rows to {a.out}")
+    s = getattr(sys.modules.get("contestant_judge"), "STATS", None)  # judges that keep run statistics (final_judge)
+    if isinstance(s, dict) and "calls" in s:  # always printed, so a scored log records temperature_dropped 0 too
+        print(f"LLM calls {s.get('calls')}, parse failures {s.get('parse_failures')}, truncated {s.get('truncated')}, "
+              f"temperature_dropped {s.get('temperature_dropped')}, models reported by the endpoint: "
+              f"{sorted(s.get('models') or [])}", file=sys.stderr)
     unparsed = _unparsed_count()
     if unparsed:
         print(f"WARNING: {unparsed} LLM answers were neither PASS nor FAIL and were counted as fail. If your prompt makes "

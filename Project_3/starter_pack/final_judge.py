@@ -57,6 +57,7 @@ VERIFY_DEANCHOR = False      # call 2 gets only where to look (quote, policy tex
 VERIFY_EXAMPLES = False      # call 2 also sees the labelled examples (calibration against false confirms on good replies)
 VERIFY_SCOPED = False        # call 2: a limitation stated anywhere counts; a condition matters only for the promise it limits
 VERIFY_WITNESS = True        # call 2 confirms only with the reply's exact words + a concrete case; code checks the quote
+HEDGE_NOT_CONDITION = False  # call 2: a certainty word ("often") does not state a dropped condition ("subject to ...")
 
 # ----------------------------------------------------------------------------------------------- state set in prepare()
 # Read-only after prepare(); judge() never writes to these.
@@ -665,12 +666,19 @@ specific thing this sentence promises? A sentence that only states an amount, pr
 that govern a different step or a different promise; those count only where the reply makes that other promise."""
 
 
+HEDGE_NOT_CONDITION_NOTE = """A word about how certain or how often something is ("often", "usually", "can", "may") \
+does not state a condition about when it applies ("subject to availability", "only if ...", "as long as ..."). If the \
+policy attaches both a hedge and a condition to a statement the reply makes, the reply needs both: a kept hedge does \
+not make up for a dropped condition, and a kept condition does not make up for a dropped hedge."""
+
+
 def _verify_instructions() -> str:
-    """Call-2 instructions: the witness or plain prompt, plus the scoped note if VERIFY_SCOPED (off: unchanged)."""
+    """Call-2 instructions: the witness or plain prompt, plus the notes of the enabled switches (off: unchanged)."""
     base = VERIFY_WITNESS_INSTRUCTIONS if VERIFY_WITNESS else VERIFY_INSTRUCTIONS
-    if not VERIFY_SCOPED:
+    notes = [n for on, n in ((VERIFY_SCOPED, VERIFY_SCOPED_NOTE), (HEDGE_NOT_CONDITION, HEDGE_NOT_CONDITION_NOTE)) if on]
+    if not notes:
         return base
-    return _sub(base, "\n\nAnswer format:", "\n" + VERIFY_SCOPED_NOTE + "\n\nAnswer format:")
+    return _sub(base, "\n\nAnswer format:", "\n" + "\n".join(notes) + "\n\nAnswer format:")
 
 
 def _confirmed(d) -> bool:

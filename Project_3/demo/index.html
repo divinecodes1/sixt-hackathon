@@ -576,7 +576,8 @@ async function loadResults() {
   const box = $("#results"); box.innerHTML = `<p class="hint"><span class="spin"></span> Reading results…</p>`;
   const r = await api("/api/results"), b = r.baseline;
   const latest = r.reports.filter(x => !/baseline/.test(x.file)).sort((x, y) => y.mtime - x.mtime);
-  const pick = latest.find(x => /dev_pairs_report/.test(x.file)) || latest[0];
+  // the shipped judge's run_dev.sh report, not a variant's exp_*_dev_pairs_report.txt
+  const pick = latest.find(x => /(^|\/)dev_pairs_report\.txt$/.test(x.file)) || latest[0];
   const k = (v, l) => v == null ? `<div class="kpi tbd"><b>TBD</b><span>${l}</span></div>` : `<div class="kpi"><b>${v.toFixed(3)}</b><span>${l}</span></div>`;
   const types = b ? Object.keys(b.types) : [];
   box.innerHTML = `

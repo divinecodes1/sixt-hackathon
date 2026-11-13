@@ -188,7 +188,7 @@ class Settings(Pipeline):
         self.saved = {k: getattr(fj, k) for k in ("PREFILL", "THINKING_BUDGET", "EXAMPLE_STYLE", "NUMBER_RULE_MAX",
                                                    "SECOND_LOOK", "ADJUDICATE", "CONDITION_EVIDENCE", "CLAUSE_IDS",
                                                    "HEDGE_FROM_QUOTE", "VERIFY_DEANCHOR", "VERIFY_EXAMPLES",
-                                                   "VERIFY_WITNESS", "VERIFY_SCOPED")}
+                                                   "VERIFY_WITNESS", "VERIFY_SCOPED", "HEDGE_NOT_CONDITION")}
         MockLLM.bodies.clear()
 
     def tearDown(self):
@@ -201,7 +201,8 @@ class Settings(Pipeline):
                                       "NUMBER_RULE_MAX": "verdict", "SECOND_LOOK": False, "ADJUDICATE": False,
                                       "CONDITION_EVIDENCE": False, "CLAUSE_IDS": False, "HEDGE_FROM_QUOTE": False,
                                       "VERIFY_DEANCHOR": False, "VERIFY_EXAMPLES": False,
-                                      "VERIFY_WITNESS": True, "VERIFY_SCOPED": False})  # W shipped 12:25 (dev 0.850 x3)
+                                      "VERIFY_WITNESS": True, "VERIFY_SCOPED": False,  # W shipped 12:25 (dev 0.850 x3)
+                                      "HEDGE_NOT_CONDITION": False})
         self.assertEqual(fj._check_instructions(), fj.CHECK_INSTRUCTIONS)
         self.assertEqual(fj._verify_instructions(), fj.VERIFY_WITNESS_INSTRUCTIONS)
         self.assertEqual(self.calls_for("You can extend dropcond at the counter."), ("pass", ["check"]))
@@ -252,6 +253,17 @@ class Settings(Pipeline):
         finally:
             for k, v in old.items():
                 os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+
+    def test_hedge_not_condition_switch(self):
+        self.assertEqual(self.calls_for("You can always extend at the counter."), ("fail", ["check", "verify"]))
+        self.assertNotIn(fj.HEDGE_NOT_CONDITION_NOTE, MockLLM.bodies[1]["messages"][1]["content"])  # default unchanged
+        fj.HEDGE_NOT_CONDITION = True
+        MockLLM.bodies.clear()
+        self.assertEqual(self.calls_for("You can always extend at the counter."), ("fail", ["check", "verify"]))
+        content = MockLLM.bodies[1]["messages"][1]["content"]
+        self.assertIn(fj.HEDGE_NOT_CONDITION_NOTE, content)
+        self.assertIn("reply_words", content)  # added to the shipped witness prompt, not replacing it
+        self.assertTrue(content.rstrip().endswith("</json>"))
 
     def test_verify_scoped_switch(self):
         fj.VERIFY_WITNESS = False  # the scoped note applies to the plain verify prompt

@@ -86,6 +86,10 @@ Honest notes so far:
   words and name a concrete misleading case. Correct originals now pass 0.920 and keep rises above the baseline.
 - **Caveat on the witness gain.** Its prompt was written after reading false fails on this same dev set, so the dev
   number is an upper bound: cross-validation separates the examples, not the prompt design. The hidden set will tell.
+- **The hedge words in the witness prompt** ("try", "often", "most", "can", "may" or similar) are examples inside
+  the call-2 prompt of wording that already leaves room, not a code rule: no code matches them, and they can only
+  lead call 2 to reject a finding. With the same prompt, the filler mock criterion (where hedges are irrelevant) still
+  beat the baseline (0.776 vs 0.543, `results/mock_filler_report.txt`).
 - **Run-to-run noise is larger than most variant gains.** Three runs of identical code give 0.754, 0.721 and 0.731
   combined, although 97.4–100% of verdicts are the same within a run pair; a setting ships only if it wins in both repeats.
 - The number rule alone adds nothing on top of the baseline, which already fails every wrong-number edit. Its misses
@@ -117,6 +121,11 @@ python3 run_judge.py --judge final_judge.py --pairs <cases.jsonl> --criterion <C
 ```
 
 ## Demo
+[`submission/demo.mp4`](submission/demo.mp4) (62 s, no audio, captions): the shipped judge on real `claude-haiku-4.5`
+through the live demo, catching the README's dropped "as long as the car is not reserved" (original PASS, edited FAIL),
+failing a typed "always … guaranteed" reply, then the measured results. Every verdict in it was produced live, not
+staged; rebuild with `submission/make_demo_video.py` against a freshly started `demo/server.py`.
+
 [`submission/slides.pdf`](submission/slides.pdf) (5 slides), built from the score.py reports by `submission/make_slides.py` (rerun it after the criterion-2 run to fill that row). Live demo: `python3 demo/server.py` (or `--mock` offline), then http://127.0.0.1:8765.
 
 ## Next steps

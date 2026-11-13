@@ -160,6 +160,10 @@ Handoff drill (filler mock as if it had just arrived, following the `p3-surprise
 of the 3 folds is empty (harmless), and a fold that sees only 3 examples may pick number rule `hint`.
 
 ## What did not work
+- **Telling call 2 that a hedge is not a condition** (`HEDGE_NOT_CONDITION`, 13:38, two full-dev runs): 0.842 vs 0.850
+  shipped. Aimed at the remaining condition_removal misses ("often" read as covering a dropped "subject to
+  availability"), it left that type at 0.800, lowered hedge_removal to 0.750 and keep on translation and polite_opener.
+  Off. Last experiment before the 14:30 prompt freeze.
 - **Evidence switches did not help** on the fast subset (base 0.716): `C_evidence` 0.700, `H_hedge` 0.700,
   `V_deanchor` 0.680. All four together (`CKHV`) scored lowest on both subsets it ran on. They stay off.
 - **Adding the number rule to the baseline gives +0.000.** The baseline already fails every wrong-number edit; its

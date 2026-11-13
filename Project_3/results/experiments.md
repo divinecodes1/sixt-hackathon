@@ -21,3 +21,4 @@ Every number below is produced by score.py.
 | 11-13 12:33 | shipped default (VERIFY_WITNESS, run_dev.sh) | dev (dev_pairs.jsonl) | 0.850 | 0.813 | 0.891 | 0.772 | 0.991 | 1.88 | 441 + 436 calls, 1 parse failure per run, model claude-haiku-4.5 |
 | 11-13 12:51 | J_adjudicate | dev (dev_pairs.jsonl) | 0.833 | 0.795 | 0.876 | 0.732 | 1.000 | 1.89 | call 3 weighs both reviewers' arguments instead of judging afresh |
 | 11-13 12:57 | WX | dev (dev_pairs.jsonl) | 0.832 | 0.800 | 0.867 | 0.735 | 1.000 | 1.84 | witness + labelled examples in call 2 |
+| 11-13 13:38 | N_hedge_not_condition | dev (dev_pairs.jsonl) | 0.842 | 0.807 | 0.879 | 0.765 | 1.000 | 1.83 | call 2: a certainty word does not state a dropped condition (on top of the shipped witness check) |
