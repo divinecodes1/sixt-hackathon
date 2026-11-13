@@ -579,16 +579,19 @@ async function loadResults() {
   const box = $("#results"); box.innerHTML = `<p class="hint"><span class="spin"></span> Reading results…</p>`;
   const r = await api("/api/results"), b = r.baseline;
   const latest = r.reports.filter(x => !/baseline/.test(x.file)).sort((x, y) => y.mtime - x.mtime);
-  // the shipped judge's run_dev.sh report, not a variant's exp_*_dev_pairs_report.txt
-  const pick = latest.find(x => /(^|\/)dev_pairs_report\.txt$/.test(x.file)) || latest[0];
+  // The shipped judge's labelled-dev reports, not variant exp_* reports or the unlabelled hidden submission CSVs.
+  const c1 = latest.find(x => /(^|\/)dev_pairs_report\.txt$/.test(x.file));
+  const c2 = latest.find(x => /(^|\/)c2_dev_pairs_report\.txt$/.test(x.file));
+  const pick = c1 || latest[0];
   const k = (v, l) => v == null ? `<div class="kpi tbd"><b>TBD</b><span>${l}</span></div>` : `<div class="kpi"><b>${v.toFixed(3)}</b><span>${l}</span></div>`;
   const types = b ? Object.keys(b.types) : [];
   box.innerHTML = `
-    <div><h2>Measured results</h2><p class="lede">Every number on this page is read from a <code>score.py</code> report in the repo. Nothing is estimated:
-      until a run exists, the value says TBD.</p></div>
+    <div><h2>Measured shipped performance</h2><p class="lede">Every number below comes from a labelled-dev <code>score.py</code> report in the repo. Nothing is estimated.
+      The hidden submission sets have no ground-truth labels, so their CSVs contain verdicts only and cannot be scored locally.</p></div>
     <div><h3 style="margin-bottom:8px">Baseline (organizers' judge, dev)</h3><div class="kpis">${k(b && b.combined, "combined")}${k(b && b.catch, "macro catch")}${k(b && b.keep, "macro keep")}${k(b && b.kappa, "kappa")}</div></div>
-    <div><h3 style="margin-bottom:8px">Ours${pick ? ` · <span class="meta">${esc(pick.file)}</span>` : ""}</h3><div class="kpis">${k(pick && pick.combined, "combined")}${k(pick && pick.catch, "macro catch")}${k(pick && pick.keep, "macro keep")}${k(pick && pick.same, "same verdict, 2 runs")}</div>
-      ${pick ? "" : `<p class="hint" style="margin-top:8px">No measured run yet. With the key: <code>bash Project_3/run_dev.sh</code>, then reload this tab.</p>`}</div>
+    <div><h3 style="margin-bottom:8px">Shipped judge · criterion 1 (labelled dev)${c1 ? ` · <span class="meta">${esc(c1.file)}</span>` : ""}</h3><div class="kpis">${k(c1 && c1.combined, "combined")}${k(c1 && c1.catch, "macro catch")}${k(c1 && c1.keep, "macro keep")}${k(c1 && c1.same, "same verdict, 2 runs")}</div></div>
+    <div><h3 style="margin-bottom:8px">Shipped judge · criterion 2 (labelled dev)${c2 ? ` · <span class="meta">${esc(c2.file)}</span>` : ""}</h3><div class="kpis">${k(c2 && c2.combined, "combined")}${k(c2 && c2.catch, "macro catch")}${k(c2 && c2.keep, "macro keep")}${k(c2 && c2.same, "same verdict, 2 runs")}</div>
+      ${c1 || c2 ? "" : `<p class="hint" style="margin-top:8px">No measured run yet. With the key: <code>bash Project_3/run_dev.sh</code>, then reload this tab.</p>`}</div>
     ${b ? `<div class="tbl"><table><thead><tr><th>Edit type</th><th>n</th><th>measure</th><th class="n">baseline</th><th class="n">ours</th><th>ours (bar) vs baseline (line)</th></tr></thead><tbody>
       ${types.map(t => { const bt = b.types[t], m = bt.catch != null ? "catch" : "keep", ov = pick && pick.types[t] ? pick.types[t][m] : null, bv = bt[m];
         return `<tr><td>${esc(t)}</td><td class="n">${bt.n}</td><td>${m}</td><td class="n">${bv.toFixed(3)}</td><td class="n">${ov == null ? "TBD" : ov.toFixed(3)}</td>
