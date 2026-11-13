@@ -57,6 +57,7 @@ VERIFY_DEANCHOR = False      # call 2 gets only where to look (quote, policy tex
 VERIFY_EXAMPLES = False      # call 2 also sees the labelled examples (calibration against false confirms on good replies)
 VERIFY_SCOPED = False        # call 2: a limitation stated anywhere counts; a condition matters only for the promise it limits
 VERIFY_WITNESS = True        # call 2 confirms only with the reply's exact words + a concrete case; code checks the quote
+TRUST_VERIFY_REJECT = True   # call 2 read the findings and confirmed none: pass, no call 3 (call 3 only if unreadable)
 HEDGE_NOT_CONDITION = False  # call 2: a certainty word ("often") does not state a dropped condition ("subject to ...")
 
 # ----------------------------------------------------------------------------------------------- state set in prepare()
@@ -751,6 +752,9 @@ def judge(question: str, reply: str, lang: str, criterion: str, policy: str) -> 
 
     if not call1:  # only code-side evidence checks, and call 2 found nothing: call 1's pass stands
         return _trace(t, "code_flags>verify_rejects", "pass")
+
+    if TRUST_VERIFY_REJECT and decisions:  # call 2 answered and proved no finding: its rejection is final
+        return _trace(t, "verify_rejects>pass", "pass")
 
     # ---- call 3: call 1 and call 2 disagree (or call 2 unreadable): tie-break
     findings = call1

@@ -51,6 +51,7 @@ VARIANTS = {
     "WX": ({"VERIFY_WITNESS": "True", "VERIFY_EXAMPLES": "True"}, "witness + labelled examples in call 2"),
     "Q_scoped_verify": ({"VERIFY_SCOPED": "True"}, "call 2: limitation stated anywhere counts; condition matters only for the promise it limits"),
     "N_hedge_not_condition": ({"HEDGE_NOT_CONDITION": "True"}, "call 2: a certainty word does not state a dropped condition (on top of the shipped witness check)"),
+    "T_trust_reject": ({"TRUST_VERIFY_REJECT": "True"}, "call 2 answered and confirmed nothing: pass, no call 3"),
     "CKHV": ({"CONDITION_EVIDENCE": "True", "CLAUSE_IDS": "True", "HEDGE_FROM_QUOTE": "True",
               "VERIFY_DEANCHOR": "True"}, "all four evidence switches"),
 }

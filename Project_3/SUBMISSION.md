@@ -1,8 +1,13 @@
 # Submission: Project 3, team Divinecodes
 
-> **Status (13 Nov, 12:35):** shipped `VERIFY_WITNESS` (dev 0.850 combined, same score in 3 runs; `score.py`).
-> Still open: the surprise criterion (14:30) and the hidden-set runs (16:00). Every number here comes from
-> `score.py`; nothing is estimated.
+> **Status (13 Nov, 14:10):** shipped judge = `VERIFY_WITNESS` + `TRUST_VERIFY_REJECT`. Dev: criterion 1 **0.845**,
+> criterion 2 (surprise) **0.883** (an earlier pair of runs of the same code gave 0.863), same verdict 1.000 within each pair of runs. Still open: the hidden-set runs (16:00). Every number
+> here comes from `score.py`; nothing is estimated.
+>
+> **Disclosure:** `TRUST_VERIFY_REJECT` was added at 14:05, *after* the surprise criterion arrived, because our error
+> analysis of criterion 2 (`results/c2_error_analysis.md`) showed call 3 overturning correct call-2 rejections. It is
+> generic (nothing criterion-specific) and was measured on both criteria before shipping. The recipe that ran the
+> surprise criterion *unchanged* scored 0.776 there (row "Ours, unchanged at 13:52" below).
 
 ## Authors
 **Team name:** Divinecodes
@@ -27,8 +32,8 @@ off as kept or dropped. Code then makes the decision. The recipe (full version i
    direction, conditions kept/dropped, certainty 0–3, scope, violates_criterion). The verdict is computed in code.
 3. **Call 2: verify suspected fails only,** in a fresh context, to cut false fails on good replies. It may confirm a
    fail only by copying the reply's exact violating words and naming a concrete case where a reader is misled; code
-   checks the words are really in the reply, and an unproven confirm goes to call 3.
-4. **Call 3: tie-break** only if calls 1 and 2 disagree.
+   checks the words are really in the reply. **If call 2 proves no finding, the reply passes.**
+4. **Call 3: holistic fallback** only if call 2's answer is unreadable (in practice at most 2 calls per reply).
 
 Constraints we respect: one reply per call; no state between calls (`prepare()` is deterministic and makes no LLM
 calls; no response cache in scored runs); nothing criterion-specific is hard-coded (examples and rule modes come
@@ -46,7 +51,8 @@ The model is fixed by the rules: `claude-haiku-4.5`. What we compare is the reci
 | --- | --- | --- | --- | --- | --- |
 | baseline_judge.py, claude-haiku-4.5 | closed | API (SIXT endpoint) | 0.697 / 0.592 / 0.847 | 1 call | no, it is the reference |
 | final_judge.py before the witness check, claude-haiku-4.5 | closed | API (SIXT endpoint) | 0.754 / 0.750 / 0.758 (run A); 0.721 / 0.700 / 0.744 (run B); 0.731 / 0.723 / 0.739 (run C) | 1–3 calls, 1.73 on average | no, replaced at 12:25 |
-| **final_judge.py, shipped (`VERIFY_WITNESS`), claude-haiku-4.5** | closed | API (SIXT endpoint) | **0.850 / 0.813 / 0.891** | 1–3 calls, 1.88 on average | **yes**, the required model |
+| final_judge.py with `VERIFY_WITNESS` only (12:25–14:05), claude-haiku-4.5 | closed | API (SIXT endpoint) | 0.850 / 0.813 / 0.891 | 1–3 calls, 1.88 on average | no, replaced at 14:05 |
+| **final_judge.py, shipped (`VERIFY_WITNESS` + `TRUST_VERIFY_REJECT`), claude-haiku-4.5** | closed | API (SIXT endpoint) | **0.845 / 0.762 / 0.949** (criterion 2: **0.883 / 0.867 / 0.900**) | 1–3 calls, 1.57 on average | **yes**, the required model |
 
 ## Results
 Measured on `dev_pairs.jsonl` with grouped cross-validation (`run_dev.sh`); the hidden-set scores come from the
@@ -59,15 +65,36 @@ organizers.
 | 1 (over-promise) | **Ours, run A** (11:23) | 0.754 | 0.750 | 0.758 | 0.623 | 0.974 |
 | 1 (over-promise) | **Ours, run B** (11:48, same code) | 0.721 | 0.700 | 0.744 | 0.575 | 0.974 |
 | 1 (over-promise) | **Ours, run C** (12:11, same code) | 0.731 | 0.723 | 0.739 | 0.601 | 1.000 |
-| 1 (over-promise) | **Ours, shipped** (`VERIFY_WITNESS`, 12:33) | **0.850** | **0.813** | **0.891** | **0.772** | **0.991** |
-| 2 (surprise) | Baseline | *TBD* | | | | |
-| 2 (surprise) | **Ours, unchanged** | *TBD* | | | | |
+| 1 (over-promise) | Ours, `VERIFY_WITNESS` only (12:33) | 0.850 | 0.813 | 0.891 | 0.772 | 0.991 |
+| 1 (over-promise) | **Ours, shipped** (+ `TRUST_VERIFY_REJECT`, 14:05) | **0.845** | **0.762** | **0.949** | **0.789** | **1.000** |
+| 2 (surprise) | Baseline | 0.652 | 0.600 | 0.715 | 0.394 | n/a |
+| 2 (surprise) | Ours, unchanged at 13:52 (`VERIFY_WITNESS` only) | 0.776 | 0.767 | 0.785 | 0.657 | 1.000 |
+| 2 (surprise) | **Ours, shipped** (+ `TRUST_VERIFY_REJECT`, `run_dev.sh` 14:06) | **0.883** | **0.867** | **0.900** | **0.788** | **1.000** |
+| 2 (surprise) | same code, earlier pair of runs (14:00) | 0.863 | 0.833 | 0.895 | 0.771 | 1.000 |
+
+Criterion 2 (surprise, "does the reply state the policy correctly?"): 73 labelled pairs from `starter_pack/surprise/` (upstream commit 0cb5c94), 9 source replies, 3-fold CV grouped by source; `prepare()` chose number rule `verdict`. Small set: one case moves a type by 10 points.
 
 Baseline per edit type (catch): condition_removal 0.067, hedge_removal 0.500, wrong_number 0.800,
 wrong_policy_detail 1.000. Keep: sentence_reorder 0.733, filler_padding 0.800, translation 0.833,
 polite_opener 0.867, padding_removal 1.000.
 
-Ours, shipped (12:33), per edit type (baseline in brackets): catch condition_removal 0.800 (0.067), hedge_removal
+**Shipped (14:05), criterion 1, per edit type** (baseline in brackets): catch condition_removal 0.667 (0.067),
+hedge_removal 0.700 (0.500), wrong_number 0.800 (0.800), wrong_policy_detail 0.880 (1.000); keep sentence_reorder
+0.933 (0.733), filler_padding 0.933 (0.800), translation 0.944 (0.833), polite_opener 0.933 (0.867), padding_removal
+1.000 (1.000). Correct originals pass 0.965 (0.858).
+
+**Shipped, criterion 2, per edit type** (`run_dev.sh` 14:06): catch wrong_policy_detail 1.000, wrong_number 0.900,
+condition_removal 0.700; keep translation 1.000, padding_removal 1.000, polite_opener 0.900, sentence_reorder 0.800,
+filler_padding 0.800. Correct originals pass 0.945. Weakest language: de (0.762).
+
+**The trade-off of the 14:05 change.** On criterion 1 it moves the judge toward keeping: keep 0.891 → 0.949, but
+catch 0.813 → 0.762, with **condition_removal catch 0.800 → 0.667** and hedge_removal 0.800 → 0.700. Combined is
+flat (0.850 → 0.845, within run-to-run noise). On criterion 2 it removes the main error source (call 3 failing
+replies call 2 had cleared): 0.776 → 0.883 (0.863 in an earlier pair of runs). Average over both criteria: 0.813 → 0.864.
+Between separate pairs of runs the same code moved by 0.020 on criterion 2 although each pair agreed on every
+verdict: "same verdict 1.000" is consistency within a pair, not a guarantee across time.
+
+With `VERIFY_WITNESS` only (12:33), per edit type (baseline in brackets): catch condition_removal 0.800 (0.067), hedge_removal
 0.800 (0.500), wrong_number 0.771 (0.800), wrong_policy_detail 0.880 (1.000); keep sentence_reorder 0.800 (0.733),
 filler_padding 0.867 (0.800), translation 0.889 (0.833), polite_opener 0.900 (0.867), padding_removal 1.000 (1.000).
 Correct originals pass 0.920 (0.858). Per language combined: en 0.968, fr 0.848, it 0.805, es 0.796, de 0.780.
@@ -86,6 +113,12 @@ Honest notes so far:
   words and name a concrete misleading case. Correct originals now pass 0.920 and keep rises above the baseline.
 - **Caveat on the witness gain.** Its prompt was written after reading false fails on this same dev set, so the dev
   number is an upper bound: cross-validation separates the examples, not the prompt design. The hidden set will tell.
+- **Why criterion 2 first scored lower, and the 14:05 change** (`results/c2_error_analysis.md`): 17 of 73 pairs were
+  wrong; 11 because a correct original failed. In 8 of the 17, call 2 had correctly cleared the reply and call 3,
+  judging from scratch under "leaving out a condition makes the statement incorrect", failed it anyway. On criterion 1
+  the same call 3 caught 12 bad replies. We made call 2's rejection final (`TRUST_VERIFY_REJECT`): measured
+  criterion 2 0.776 → 0.883 and criterion 1 0.850 → 0.845, at the cost of criterion-1 dropped-condition catch
+  (0.800 → 0.667). Disclosed in the status note at the top: it was added after seeing the surprise data.
 - **The hedge words in the witness prompt** ("try", "often", "most", "can", "may" or similar) are examples inside
   the call-2 prompt of wording that already leaves room, not a code rule: no code matches them, and they can only
   lead call 2 to reject a finding. With the same prompt, the filler mock criterion (where hedges are irrelevant) still
@@ -122,16 +155,19 @@ python3 run_judge.py --judge final_judge.py --pairs <cases.jsonl> --criterion <C
 
 ## Demo
 [`submission/demo.mp4`](submission/demo.mp4) (62 s, no audio, captions): the shipped judge on real `claude-haiku-4.5`
-through the live demo, catching the README's dropped "as long as the car is not reserved" (original PASS, edited FAIL),
+through the live demo, catching dev case J1D-0022, a dropped "as long as the branch is still open" (original PASS,
+edited FAIL, 4 calls; the README's "not reserved" example now passes, see the dropped-condition trade-off above),
 failing a typed "always … guaranteed" reply, then the measured results. Every verdict in it was produced live, not
 staged; rebuild with `submission/make_demo_video.py` against a freshly started `demo/server.py`.
 
-[`submission/slides.pdf`](submission/slides.pdf) (5 slides), built from the score.py reports by `submission/make_slides.py` (rerun it after the criterion-2 run to fill that row). Live demo: `python3 demo/server.py` (or `--mock` offline), then http://127.0.0.1:8765.
+[`submission/slides.pdf`](submission/slides.pdf) (5 slides), built from the score.py reports by `submission/make_slides.py` (rebuilt 14:09 with both criteria). Live demo: `python3 demo/server.py` (or `--mock` offline), then http://127.0.0.1:8765.
 
 ## Next steps
-- Done 12:35: `W_witness` measured in 3 runs and shipped; `X_verify_examples`, `VERIFY_SCOPED`, `J_adjudicate` and
-  `S_second_look` parked (one decision per day, see `PLAN.md`). Next: mock-criterion rehearsal, then the surprise.
+- Shipped: `VERIFY_WITNESS` (12:25) and `TRUST_VERIFY_REJECT` (14:05). Measured and not shipped: `HEDGE_NOT_CONDITION`
+  (0.842), `J_adjudicate` (0.833), `WX` (0.832); parked: `X_verify_examples`, `VERIFY_SCOPED`, `S_second_look`.
   The stress set was not run on the LLM (team decision on 13 Nov: dev only).
+- Win back criterion-1 dropped-condition catch (0.667) without the call-3 false fails: the remaining misses are call 2
+  reading a hedge ("often") as the dropped condition (`results/c2_error_analysis.md`, case 5).
 - Variant tests from the research plan: a separate recall call for conditions vs the verify call; three differently
   framed calls with a majority vote.
 - For SIXT: run the recipe as a release gate for chatbot changes. A reply that drops a policy condition is blocked

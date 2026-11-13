@@ -1,8 +1,9 @@
 # LLM architecture design: `final_judge.py`
 
 Team Divinecodes, SIXT Hackathon 2026, Project 3 "Judge the Judge". Status: implemented, unit-tested with a mock
-model (77 tests), measured on `claude-haiku-4.5` on dev (13 Nov: 0.754, 0.721 and 0.731 before the witness check;
-**0.850 shipped with `VERIFY_WITNESS`**, consistency 0.991; `starter_pack/RECIPE.md` Step 4). This document
+model (92 tests), measured on `claude-haiku-4.5` on dev (13 Nov: 0.754, 0.721 and 0.731 before the call-2 changes;
+0.850 with `VERIFY_WITNESS`; **shipped with `VERIFY_WITNESS` + `TRUST_VERIFY_REJECT`: criterion 1 0.845, criterion 2
+0.883** (0.863 in an earlier pair), consistency 1.000; `starter_pack/RECIPE.md` Step 4). This document
 describes the code as it is; where it states a number, the number comes from `score.py` or a test run in this repo.
 
 ## 1. Objective and constraints
@@ -73,7 +74,8 @@ flowchart TD
     C2b -->|confirmed| H1[Call 3: tie-break] --> V1[verdict · 3 calls]
     C1 -->|some claim violates| C2[Call 2: verify findings,<br/>fresh context, must quote the reply<br/>and name a concrete case]
     C2 -->|any confirmed with words found in the reply| F2[FAIL · 2 calls]
-    C2 -->|all rejected / unreadable| H2[Call 3: tie-break] --> V2[verdict · 3 calls]
+    C2 -->|all rejected, readable| P3[PASS · 2 calls]
+    C2 -->|unreadable| H2[Call 3: holistic fallback] --> V2[verdict · 3 calls]
 ```
 
 Call 3 judges from scratch with examples by default; with `ADJUDICATE` it receives both reviewers' arguments in a
@@ -128,7 +130,8 @@ object under review.
 | 429, 5xx, timeout | Retry with backoff; after the budget, `LLMError` aborts the run | Infrastructure errors are **never** turned into a `fail` label |
 | `finish_reason == "length"` | Text kept, marker added, `STATS["truncated"]` counted | Visible in the run report; 3000 tokens leaves room for long claim lists |
 | Call 1 unreadable | Go to call 3 (holistic) | One more chance without the JSON format |
-| Call 2 unreadable | Treated as "not confirmed" → call 3 tie-break | Disagreement path, not a silent pass |
+| Call 2 unreadable | Call 3 holistic fallback | Never a silent pass |
+| Call 2 readable, no finding proven | `pass` (since 14:05, `TRUST_VERIFY_REJECT`) | Call 3 judging from scratch overturned correct rejections on criterion 2 |
 | Call 3 unreadable | `fail` | **Known bias** toward fail (hurts keep). Accepted only if `parse_failures` stays about 0 in measured runs; otherwise revisit before the freeze |
 | Missing env vars | `LLMError` before any request | Fail fast |
 
@@ -173,6 +176,7 @@ measured.
 | `VERIFY_DEANCHOR` | `False` | call 2 sees where to look, not call 1's conclusion | `V_deanchor` |
 | `VERIFY_EXAMPLES` | `False` | call 2 also sees the labelled examples | `X_verify_examples` |
 | `VERIFY_SCOPED` | `False` | call 2: limitation stated anywhere counts; condition matters only for the promise it limits | `Q_scoped_verify` |
+| **`TRUST_VERIFY_REJECT`** | **`True` (shipped 14:05)** | call 2 answered and proved no finding: pass, no call 3 | `T_trust_reject` |
 | **`VERIFY_WITNESS`** | **`True` (shipped 12:25)** | call 2 confirms only with the reply's exact words (checked in code) and a concrete misleading case | `W_witness` |
 
 ## 11. Evaluation architecture
@@ -197,6 +201,12 @@ run B (same code) 0.721 / 0.700 / 0.744, kappa 0.575; same verdict 0.974; 1.73 c
 concrete misleading case; unproven confirms go to call 3). Full dev with `run_dev.sh` (12:33): 0.850 / 0.813 / 0.891,
 kappa 0.772, same verdict 0.991, 1.88 calls per reply, correct originals pass 0.920. The prompt was designed on dev
 false fails, so this is an upper bound for unseen data.
+
+**Shipped 14:05: `TRUST_VERIFY_REJECT = True`**, added after the surprise criterion arrived (disclosed in
+`SUBMISSION.md`): if call 2 answers and proves no finding, the reply passes; call 3 only runs when call 2 is unreadable.
+`run_dev.sh` 14:05, criterion 1: 0.845 / 0.762 / 0.949, kappa 0.789, same verdict 1.000, 1.57 calls per reply, correct
+originals pass 0.965; criterion 2 (`run_dev.sh` 14:06): 0.883 / 0.867 / 0.900 (was 0.776; an earlier pair of runs gave 0.863). Trade-off: criterion-1 condition_removal catch
+0.800 → 0.667. Error analysis: `results/c2_error_analysis.md`.
 
 ## 12. Risks and next steps
 

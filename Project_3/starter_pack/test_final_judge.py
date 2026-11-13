@@ -66,7 +66,10 @@ class MockLLM(http.server.BaseHTTPRequestHandler):
         elif system == fj.SYSTEM_VERIFY:
             kind = "verify"
             words = "words that are not in the reply at all" if "fakequote" in reply else reply[:25]
-            out = "<json>" + json.dumps({"findings": [{"id": 1, "decision": "confirmed" if "counter" in reply
+            if "garbledverify" in reply:  # call 2 answers without any readable JSON
+                out = "I am not sure."
+            else:
+              out = "<json>" + json.dumps({"findings": [{"id": 1, "decision": "confirmed" if "counter" in reply
                                                        else "rejected", "reply_words": words,
                                                        "situation": "a customer at a branch where it is not possible"}]}) + "</json>"
         elif system == fj.SYSTEM_VERIFY_NEUTRAL:
@@ -165,8 +168,9 @@ class Pipeline(unittest.TestCase):
     def test_confirmed_violation_two_calls(self):
         self.assertEqual(self.calls_for("You can always extend at the counter."), ("fail", ["check", "verify"]))
 
-    def test_rejected_violation_goes_to_tiebreak(self):
-        self.assertEqual(self.calls_for("You can always extend in the app."), ("pass", ["check", "verify", "holistic"]))
+    def test_rejected_violation_passes_without_tiebreak(self):
+        # shipped 14:05: call 2 answered and confirmed nothing -> pass, no call 3 (TRUST_VERIFY_REJECT)
+        self.assertEqual(self.calls_for("You can always extend in the app."), ("pass", ["check", "verify"]))
 
     def test_number_rule_fails_without_overturn(self):
         verdict, calls = self.calls_for("You can return the car up to 40 minutes late.")
@@ -188,7 +192,8 @@ class Settings(Pipeline):
         self.saved = {k: getattr(fj, k) for k in ("PREFILL", "THINKING_BUDGET", "EXAMPLE_STYLE", "NUMBER_RULE_MAX",
                                                    "SECOND_LOOK", "ADJUDICATE", "CONDITION_EVIDENCE", "CLAUSE_IDS",
                                                    "HEDGE_FROM_QUOTE", "VERIFY_DEANCHOR", "VERIFY_EXAMPLES",
-                                                   "VERIFY_WITNESS", "VERIFY_SCOPED", "HEDGE_NOT_CONDITION")}
+                                                   "VERIFY_WITNESS", "VERIFY_SCOPED", "HEDGE_NOT_CONDITION",
+                                                   "TRUST_VERIFY_REJECT")}
         MockLLM.bodies.clear()
 
     def tearDown(self):
@@ -202,7 +207,8 @@ class Settings(Pipeline):
                                       "CONDITION_EVIDENCE": False, "CLAUSE_IDS": False, "HEDGE_FROM_QUOTE": False,
                                       "VERIFY_DEANCHOR": False, "VERIFY_EXAMPLES": False,
                                       "VERIFY_WITNESS": True, "VERIFY_SCOPED": False,  # W shipped 12:25 (dev 0.850 x3)
-                                      "HEDGE_NOT_CONDITION": False})
+                                      "HEDGE_NOT_CONDITION": False,
+                                      "TRUST_VERIFY_REJECT": True})  # shipped 14:05 (c1 0.845, c2 0.863)
         self.assertEqual(fj._check_instructions(), fj.CHECK_INSTRUCTIONS)
         self.assertEqual(fj._verify_instructions(), fj.VERIFY_WITNESS_INSTRUCTIONS)
         self.assertEqual(self.calls_for("You can extend dropcond at the counter."), ("pass", ["check"]))
@@ -221,6 +227,7 @@ class Settings(Pipeline):
         self.assertIn("<examples>", MockLLM.bodies[1]["messages"][1]["content"])
 
     def test_verify_witness_switch(self):
+        fj.TRUST_VERIFY_REJECT = False  # so an unwitnessed confirm reaches call 3, as in the 12:25 design
         fj.VERIFY_WITNESS = False
         self.assertEqual(self.calls_for("You can always extend fakequote at the counter."), ("fail", ["check", "verify"]))
         self.assertNotIn("reply_words", MockLLM.bodies[1]["messages"][1]["content"])  # default prompt unchanged
@@ -253,6 +260,23 @@ class Settings(Pipeline):
         finally:
             for k, v in old.items():
                 os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+
+    def test_trust_verify_reject_switch(self):
+        fj.VERIFY_WITNESS = True
+        fj.TRUST_VERIFY_REJECT = False
+        # off: call 2's unproven confirm counts as a rejection, so call 3 decides (mock: PASS)
+        self.assertEqual(self.calls_for("You can always extend fakequote at the counter."),
+                         ("pass", ["check", "verify", "holistic"]))
+        fj.TRUST_VERIFY_REJECT = True  # shipped: call 2 answered and proved nothing: pass without call 3
+        self.assertEqual(self.calls_for("You can always extend fakequote at the counter."), ("pass", ["check", "verify"]))
+        # a witnessed confirm still fails
+        self.assertEqual(self.calls_for("You can always extend at the counter."), ("fail", ["check", "verify"]))
+
+    def test_unreadable_verify_still_goes_to_tiebreak(self):
+        self.assertTrue(fj.TRUST_VERIFY_REJECT)
+        # call 2 gave no readable decision: not a rejection, so call 3 decides (never a silent pass)
+        self.assertEqual(self.calls_for("You can always extend garbledverify in the app."),
+                         ("pass", ["check", "verify", "holistic"]))
 
     def test_hedge_not_condition_switch(self):
         self.assertEqual(self.calls_for("You can always extend at the counter."), ("fail", ["check", "verify"]))
@@ -347,6 +371,7 @@ class ReviewFixes(Settings):
                          ("pass", ["check", "verify", "holistic"]))
 
     def test_adjudicate_sends_dispute(self):
+        fj.TRUST_VERIFY_REJECT = False  # call 3 runs only on the old disagreement path
         fj.ADJUDICATE = True
         self.calls_for("You can always extend in the app.")
         self.assertIn("<dispute>", MockLLM.bodies[-1]["messages"][1]["content"])
@@ -365,7 +390,7 @@ class ReviewFixes(Settings):
                 os.environ.pop("JUDGE_TRACE")
             with open(path, encoding="utf-8") as f:
                 row = json.load(f)
-            self.assertEqual((row["path"], row["calls"], row["verdict"]), ("verify_rejects>tiebreak", 3, "pass"))
+            self.assertEqual((row["path"], row["calls"], row["verdict"]), ("verify_rejects>pass", 2, "pass"))
             self.assertNotIn("always", json.dumps(row))  # reply text is hashed, not logged
 
 
@@ -473,6 +498,7 @@ class EvidenceSwitches(Settings):
             self.assertIn(field, text)
 
     def test_verify_deanchor(self):
+        fj.TRUST_VERIFY_REJECT = False  # the tie-break below needs the old disagreement path
         fj.VERIFY_DEANCHOR = True
         self.assertEqual(self.calls_for("You can always extend at the counter."), ("fail", ["check", "verify"]))
         content = MockLLM.bodies[1]["messages"][1]["content"]

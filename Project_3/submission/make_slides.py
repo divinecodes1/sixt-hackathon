@@ -13,11 +13,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 P3 = os.path.dirname(HERE)
 RES = os.path.join(P3, "results")
 
-# (label, report path). First = the shipped judge (run_dev.sh, VERIFY_WITNESS on, 12:33); second = the same recipe
-# before the witness check (run A, 11:23), to show what the fix bought.
+# (label, report path). First = the shipped judge (run_dev.sh: VERIFY_WITNESS + TRUST_VERIFY_REJECT, 14:05); second = the
+# same recipe before both call-2 changes (run A, 11:23), to show what they bought.
 BASELINE = os.path.join(P3, "starter_pack", "baseline_report.txt")
 OURS = [("Ours, shipped", os.path.join(RES, "dev_pairs_report.txt")),
-        ("Ours, before witness check", os.path.join(RES, "exp_base_dev_dev_pairs_report.txt"))]
+        ("Ours, before call-2 changes", os.path.join(RES, "exp_base_dev_dev_pairs_report.txt"))]
 C2_OURS = os.path.join(RES, "c2_dev_pairs_report.txt")            # written by run_dev.sh on the surprise criterion
 C2_BASE = os.path.join(RES, "c2_vs_baseline_report.txt")          # score.py ... --baseline (optional)
 REPO = "github.com/divinecodes1/sixt-hackathon"
@@ -187,7 +187,7 @@ checked in code. Nothing about the criterion is hard-coded; examples and rule mo
 {PIPELINE}
 <ul>
 <li><b>Self-validating rule:</b> a number not in the policy fails the reply, only if <code>prepare()</code> sees it never fire on a pass example of the current criterion; otherwise hint or off.</li>
-<li><b>Verify only suspected fails</b> in a fresh context. Call 2 may confirm a fail only by quoting the reply's exact words (checked in code) and naming a concrete misleading case; a third call only when calls 1 and 2 disagree.</li>
+<li><b>Verify only suspected fails</b> in a fresh context. Call 2 may confirm a fail only by quoting the reply's exact words (checked in code) and naming a concrete misleading case. If it proves none, the reply passes; a third call only if call 2's answer is unreadable. At most 2 calls in practice.</li>
 <li>Same code for the surprise criterion: only <code>--criterion</code> and <code>--dev</code> change.</li>
 </ul>
 <div class="foot">starter_pack/final_judge.py · recipe: starter_pack/RECIPE.md</div>
@@ -198,10 +198,11 @@ checked in code. Nothing about the criterion is hard-coded; examples and rule mo
 <h1>More bad replies caught, <span class="accent">and more good replies kept</span></h1>
 <div class="cols"><div>{chart}</div>
 <div style="flex:1"><table><tr><th>crit.</th><th>judge</th><th>combined</th><th>catch</th><th>keep</th><th>kappa</th><th>repeat</th></tr>{trs}</table>
-<p style="font-size:13pt"><b>What fixed keep:</b> before the witness check, call 2 confirmed false alarms on correct
-replies (correct original passed {orig_pass}, baseline {f3(base.get('orig_pass'))}); each failed original costs every
-pair built from it. <b>What did not work:</b> evidence-quoting variants in call 1 scored lower on subsets.
-<b>Caveat:</b> the witness prompt was designed on dev errors, so the dev gain is an upper bound. “repeat” = same verdict on two runs.</p></div></div>
+<p style="font-size:13pt"><b>What fixed keep:</b> call 2 must prove a violation with the reply's own words, and an
+unproven finding passes (correct original passed {orig_pass}, baseline {f3(base.get('orig_pass'))}).
+<b>Disclosed:</b> the last change (an unproven finding passes, no call 3) was made after the surprise criterion arrived and
+measured on both; it costs some criterion-1 catch on dropped conditions. <b>Caveat:</b> both call-2 changes were designed
+on dev errors, so dev gains are an upper bound. “repeat” = same verdict on two runs.</p></div></div>
 <div class="foot">Sources: starter_pack/baseline_report.txt, results/dev_pairs_report.txt (shipped), results/exp_base_dev_dev_pairs_report.txt{', results/c2_dev_pairs_report.txt' if c2 else ''}</div>
 </section>
 

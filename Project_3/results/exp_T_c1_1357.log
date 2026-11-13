@@ -1,0 +1,3 @@
+1 variant(s) x 2 run(s): 470 replies to judge, 1-3 LLM calls each
+  T_trust_reject call 2 answered and confirmed nothing: pass, no call 3
+| 11-13 14:00 | T_trust_reject | dev (dev_pairs.jsonl) | 0.845 | 0.762 | 0.949 | 0.789 | 1.000 | 1.57 | call 2 answered and confirmed nothing: pass, no call 3 |

@@ -22,3 +22,8 @@ Every number below is produced by score.py.
 | 11-13 12:51 | J_adjudicate | dev (dev_pairs.jsonl) | 0.833 | 0.795 | 0.876 | 0.732 | 1.000 | 1.89 | call 3 weighs both reviewers' arguments instead of judging afresh |
 | 11-13 12:57 | WX | dev (dev_pairs.jsonl) | 0.832 | 0.800 | 0.867 | 0.735 | 1.000 | 1.84 | witness + labelled examples in call 2 |
 | 11-13 13:38 | N_hedge_not_condition | dev (dev_pairs.jsonl) | 0.842 | 0.807 | 0.879 | 0.765 | 1.000 | 1.83 | call 2: a certainty word does not state a dropped condition (on top of the shipped witness check) |
+| 11-13 13:52 | criterion 2 (surprise), shipped judge unchanged | c2 dev (73 pairs) | 0.776 | 0.767 | 0.785 | 0.657 | 1.000 | n/a | baseline 0.652 / 0.600 / 0.715; 207 calls per run, 0 parse failures |
+| 11-13 14:00 | T_trust_reject | dev (dev_pairs.jsonl) | 0.845 | 0.762 | 0.949 | 0.789 | 1.000 | 1.57 | call 2 answered and confirmed nothing: pass, no call 3 |
+| 11-13 14:00 | T_trust_reject, criterion 2 | c2 dev (73 pairs) | 0.863 | 0.833 | 0.895 | 0.771 | 1.000 | n/a | 169 calls per run, 0 parse failures; shipped judge 0.776 on the same pairs |
+| 11-13 14:06 | shipped (TRUST_VERIFY_REJECT), run_dev.sh, criterion 2 | c2 dev (73 pairs) | 0.883 | 0.867 | 0.900 | 0.788 | 1.000 | n/a | same code as the 14:00 row (0.863): between-pair noise 0.020 |
+| 11-13 14:05 | shipped (TRUST_VERIFY_REJECT), run_dev.sh, criterion 1 | dev (dev_pairs.jsonl) | 0.845 | 0.762 | 0.949 | 0.789 | 1.000 | 1.57 | 369 calls per run, 1 parse failure per run |

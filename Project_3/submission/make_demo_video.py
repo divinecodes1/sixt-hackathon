@@ -18,7 +18,7 @@ import tempfile
 from playwright.sync_api import sync_playwright
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-CASE = "J1D-0125"  # the README example: "as long as the car is not reserved for another customer" dropped
+CASE = "J1D-0022"  # dev case: "as long as the branch is still open" dropped; caught in both shipped runs
 
 
 def caption(page, text: str) -> None:
@@ -73,7 +73,7 @@ def main() -> None:
         page.select_option("#f-lang", "en")
         page.click(f'#list .case[data-id="{CASE}"]')
         page.wait_for_selector("#go")
-        caption(page, "Live demo, real claude-haiku-4.5: the edited reply drops “as long as the car is not reserved”.")
+        caption(page, "Live demo, real claude-haiku-4.5: the edited reply drops “as long as the branch is still open”.")
         shot(page, frames, f"{tmp}/l1.png", 7)
         page.click("#go")
         page.wait_for_selector("#outcome .outcome", timeout=240_000)

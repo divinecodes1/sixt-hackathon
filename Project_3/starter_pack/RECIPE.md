@@ -59,7 +59,10 @@ The LLM keeps everything else: conditions, hedges, scope, policy details, and th
    **Shipped 12:25: `VERIFY_WITNESS = True`.** Call 2 confirms only if it copies the reply's exact words that violate
    the criterion and names one concrete case where a reader is misled; code checks the words are in the reply, and an
    unproven confirm goes to call 3.
-5. **Tie-break (call 3)** only when calls 1 and 2 disagree: an independent holistic judgment with examples. With
+   **Shipped 14:05: `TRUST_VERIFY_REJECT = True`** (added after the surprise criterion arrived, disclosed): if call 2
+   answers and proves no finding, the reply passes; call 3 runs only when call 2's answer is unreadable.
+5. **Fallback (call 3)**, since 14:05 only when call 2's answer is unreadable (before: whenever calls 1 and 2
+   disagreed): an independent holistic judgment with examples. With
    `ADJUDICATE = True` (off until measured), call 3 sees both reviewers' arguments and checks each one against the
    reply, instead of judging from scratch.
 6. **Evidence switches (built, off until measured; `../docs/reports/Policy grounded LLM judge methods.md`).** `CONDITION_EVIDENCE`: a condition marked kept must quote the reply, and code checks the quote; unproven ones go to call 2. `CLAUSE_IDS`: `prepare()` numbers the policy clauses (no LLM, format-generic); call 1 cites a clause id and its exact words, and code checks them. `HEDGE_FROM_QUOTE`: certainty is rated from the copied original hedge words, and quantity words go to scope. `VERIFY_DEANCHOR`: call 2 sees only where to look, not the first reviewer's conclusion. Findings raised by code (not by call 1) that call 2 rejects end in pass, without a call 3. `VERIFY_EXAMPLES`: call 2 also sees the labelled examples, aimed at the false confirms on good replies (staff review, 13 Nov).
@@ -88,13 +91,14 @@ come from the source replies being scored. Run twice for consistency: `bash run_
 | Ours, same code, run B | 0.721 | 0.700 | 0.744 | 0.575 | 0.974 |
 | Ours, same code, run C (12:11) | 0.731 | 0.723 | 0.739 | 0.601 | 1.000 |
 | Ours + `VERIFY_WITNESS` (12:21, experiments.py) | 0.850 | 0.813 | 0.891 | 0.767 | 1.000 |
-| **Ours, shipped default (`run_dev.sh`, 12:33)** | **0.850** | **0.813** | **0.891** | **0.772** | **0.991** |
+| Ours, `VERIFY_WITNESS` only (`run_dev.sh`, 12:33) | 0.850 | 0.813 | 0.891 | 0.772 | 0.991 |
+| **Ours, shipped: + `TRUST_VERIFY_REJECT` (`run_dev.sh`, 14:05)** | **0.845** | **0.762** | **0.949** | **0.789** | **1.000** |
 
 The `VERIFY_WITNESS` prompt was written after reading run C's false fails on this same dev set, so its dev gain is
 an upper bound: cross-validation keeps the examples apart, not the prompt design. 9 source replies per type: one
 case moves a type by 3-7 points. Reports: `../results/exp_W_witness_dev_dev_pairs_report.txt` (variant) and
-`../results/dev_pairs_report.txt` (shipped default, 12:33: 1.88 calls per reply, 1 parse failure per run, model
-`claude-haiku-4.5`). Shipped, per edit type: catch condition_removal 0.800, hedge_removal 0.800, wrong_number 0.771,
+`../results/dev_pairs_report.txt` (now the 14:05 shipped run: 1.57 calls per reply, 1 parse failure per run, model
+`claude-haiku-4.5`). With `VERIFY_WITNESS` only (12:33), per edit type: catch condition_removal 0.800, hedge_removal 0.800, wrong_number 0.771,
 wrong_policy_detail 0.880; keep sentence_reorder 0.800, filler_padding 0.867, translation 0.889, polite_opener 0.900,
 padding_removal 1.000; correct originals pass 0.920 (baseline 0.858).
 
@@ -138,8 +142,30 @@ off or to hint mode if the new criterion does not reward it) and picks new examp
 
 | | combined | catch | keep |
 |---|---|---|---|
-| Baseline | *TBD (arrives about 14:30)* | | |
-| Ours, recipe unchanged | *TBD (arrives about 14:30)* | | |
+| Baseline (`baseline_judge.py`, one run) | 0.652 | 0.600 | 0.715 |
+| Ours, recipe unchanged at 13:52 (2 runs, same verdict 1.000) | 0.776 | 0.767 | 0.785 |
+| **Ours, shipped: + `TRUST_VERIFY_REJECT`** (`run_dev.sh` 14:06, same verdict 1.000) | **0.883** | **0.867** | **0.900** |
+| same code, earlier pair of runs (14:00) | 0.863 | 0.833 | 0.895 |
+
+Criterion 2: "does the reply state the policy correctly?", errors in both directions. 73 labelled pairs from `starter_pack/surprise/` (upstream commit 0cb5c94), 9 source replies, 3-fold CV grouped by source; `prepare()` chose number rule `verdict`. Small set: one case moves a type by 10 points.
+Ours per edit type: catch wrong_policy_detail 1.000, wrong_number 0.700, condition_removal 0.600; keep padding_removal
+1.000, polite_opener 0.800, sentence_reorder 0.800, filler_padding 0.700, translation 0.625. Correct originals pass
+0.849. Weakest language: it (0.609). Reports: `../results/c2_dev_pairs_report.txt`, `../results/c2_vs_baseline_report.txt`.
+
+Why lower than criterion 1 (full analysis: `../results/c2_error_analysis.md`): 11 of the 17 wrong pairs are lost because a
+correct original fails. The criterion's "leaving out a condition makes the statement incorrect" makes the judge flag
+omissions that the reply covers in another sentence ("we will try to reserve one") or that belong to a different promise
+(card rules on a deposit amount). Call 3, which judges from scratch, overturns call 2's correct rejections here (6
+good replies failed, 1 bad reply caught), while on criterion 1 it catches 12 bad replies. One source reply (child
+seats) drives 9 of the 17 errors.
+
+**What we changed after the surprise (disclosed).** The analysis pointed at call 3, a step that is not specific to any
+criterion, so we made call 2's rejection final (`TRUST_VERIFY_REJECT`, 14:05) and measured it on both criteria before
+shipping: criterion 2 0.776 → **0.883** (0.863 in an earlier pair of runs; catch 0.867, keep 0.900; per type:
+wrong_policy_detail 1.000, wrong_number 0.900, condition_removal 0.700; keep translation 1.000, polite_opener 0.900,
+sentence_reorder and filler_padding 0.800; correct originals pass 0.945), criterion 1 0.850 → **0.845**. **Trade-off:** on criterion 1, keep rises (0.891 →
+0.949, correct originals pass 0.965) but catch falls (0.813 → 0.762): condition_removal 0.800 → 0.667, hedge_removal
+0.800 → 0.700. Reports: `../results/dev_pairs_report.txt`, `../results/c2_vs_baseline_report.txt`.
 
 **Rehearsal on two mock criteria (12:35, one run each, `results/mock_{numbers,filler}_report.txt`).** Relabelled dev
 data, built by `.claude/skills/p3-mock-criterion-rehearsal/scripts/make_mocks.py`; labels come from construction and
