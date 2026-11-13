@@ -1,4 +1,5 @@
 # never upload secrets or bulky run outputs
+Project_2/
 .env
 .env.*
 !.env.example
