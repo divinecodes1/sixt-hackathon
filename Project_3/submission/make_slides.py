@@ -13,10 +13,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 P3 = os.path.dirname(HERE)
 RES = os.path.join(P3, "results")
 
-# (label, report path). Run A and run B are the same code, run on different times: the gap is run-to-run noise.
+# (label, report path). First = the shipped judge (run_dev.sh, VERIFY_WITNESS on, 12:33); second = the same recipe
+# before the witness check (run A, 11:23), to show what the fix bought.
 BASELINE = os.path.join(P3, "starter_pack", "baseline_report.txt")
-OURS = [("Ours, run A", os.path.join(RES, "exp_base_dev_dev_pairs_report.txt")),
-        ("Ours, run B", os.path.join(RES, "dev_pairs_report.txt"))]
+OURS = [("Ours, shipped", os.path.join(RES, "dev_pairs_report.txt")),
+        ("Ours, before witness check", os.path.join(RES, "exp_base_dev_dev_pairs_report.txt"))]
 C2_OURS = os.path.join(RES, "c2_dev_pairs_report.txt")            # written by run_dev.sh on the surprise criterion
 C2_BASE = os.path.join(RES, "c2_vs_baseline_report.txt")          # score.py ... --baseline (optional)
 REPO = "github.com/divinecodes1/sixt-hackathon"
@@ -132,8 +133,9 @@ def main() -> None:
         trs += '<tr class="pending"><td>2</td><td colspan=6>runs on the new criterion at 14:30, code unchanged</td></tr>'
 
     cond_base = base["types"].get("condition_removal", {}).get("catch", "n/a")
-    cond_ours = " / ".join(r["types"].get("condition_removal", {}).get("catch", "n/a") for _, r in runs)
-    orig_pass = " / ".join(f3(r.get("orig_pass")) for _, r in runs)
+    shipped = runs[0][1]
+    cond_ours = shipped["types"].get("condition_removal", {}).get("catch", "n/a")
+    orig_pass = " → ".join(f3(r.get("orig_pass")) for _, r in reversed(runs))
 
     page = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Judge the Judge · Divinecodes</title>
 <style>
@@ -173,7 +175,7 @@ catches only <b>{float(cond_base):.0%}</b> of dropped conditions on dev. A relea
 <p>For every claim, call 1 lists the conditions and hedges the <b>policy</b> attaches to it and marks each one
 <i>kept</i>, <i>dropped</i> or <i>not applicable</i>. A dropped condition becomes a visible field instead of a gap.</p>
 <div class="cols"><div><div class="big">{cond_base} → {cond_ours}</div>
-<p>dropped-condition catch rate, baseline → ours (dev, grouped 3-fold CV, two runs)</p></div></div>
+<p>dropped-condition catch rate, baseline → ours (dev, grouped 3-fold CV, shipped judge)</p></div></div>
 <p>The rest is generic: certainty on a 0–3 scale (“usually” vs “always”), scope (some vs all branches), and numbers
 checked in code. Nothing about the criterion is hard-coded; examples and rule mode come from the labelled pairs.</p>
 <div class="foot">Numbers from score.py reports: starter_pack/baseline_report.txt, results/*_report.txt</div>
@@ -185,7 +187,7 @@ checked in code. Nothing about the criterion is hard-coded; examples and rule mo
 {PIPELINE}
 <ul>
 <li><b>Self-validating rule:</b> a number not in the policy fails the reply, only if <code>prepare()</code> sees it never fire on a pass example of the current criterion; otherwise hint or off.</li>
-<li><b>Verify only suspected fails</b> in a fresh context; a third call only when calls 1 and 2 disagree. 1.73 calls per reply on average.</li>
+<li><b>Verify only suspected fails</b> in a fresh context. Call 2 may confirm a fail only by quoting the reply's exact words (checked in code) and naming a concrete misleading case; a third call only when calls 1 and 2 disagree.</li>
 <li>Same code for the surprise criterion: only <code>--criterion</code> and <code>--dev</code> change.</li>
 </ul>
 <div class="foot">starter_pack/final_judge.py · recipe: starter_pack/RECIPE.md</div>
@@ -193,14 +195,14 @@ checked in code. Nothing about the criterion is hard-coded; examples and rule mo
 
 <section>
 <div class="kicker">RESULTS · DEV, GROUPED CROSS-VALIDATION, claude-haiku-4.5</div>
-<h1>More bad replies caught; good replies still cost us</h1>
+<h1>More bad replies caught, <span class="accent">and more good replies kept</span></h1>
 <div class="cols"><div>{chart}</div>
 <div style="flex:1"><table><tr><th>crit.</th><th>judge</th><th>combined</th><th>catch</th><th>keep</th><th>kappa</th><th>repeat</th></tr>{trs}</table>
-<p style="font-size:13pt"><b>What did not work:</b> keep fell below the baseline: the judge fails some correct replies
-(correct original passed: {orig_pass} vs baseline {f3(base.get('orig_pass'))}), and each failed original costs every
-pair built from it. Evidence-quoting variants scored lower on subsets. Identical runs differ by up to
-{abs(runs[0][1]['combined'] - runs[-1][1]['combined']):.3f} combined, so a change ships only if it wins in both repeats. “repeat” = same verdict on two runs.</p></div></div>
-<div class="foot">Sources: starter_pack/baseline_report.txt, results/exp_base_dev_dev_pairs_report.txt, results/dev_pairs_report.txt{', results/c2_dev_pairs_report.txt' if c2 else ''}</div>
+<p style="font-size:13pt"><b>What fixed keep:</b> before the witness check, call 2 confirmed false alarms on correct
+replies (correct original passed {orig_pass}, baseline {f3(base.get('orig_pass'))}); each failed original costs every
+pair built from it. <b>What did not work:</b> evidence-quoting variants in call 1 scored lower on subsets.
+<b>Caveat:</b> the witness prompt was designed on dev errors, so the dev gain is an upper bound. “repeat” = same verdict on two runs.</p></div></div>
+<div class="foot">Sources: starter_pack/baseline_report.txt, results/dev_pairs_report.txt (shipped), results/exp_base_dev_dev_pairs_report.txt{', results/c2_dev_pairs_report.txt' if c2 else ''}</div>
 </section>
 
 <section>
@@ -214,7 +216,7 @@ certainty is blocked.</li>
 </ul>
 <h2>Next steps</h2>
 <ul>
-<li>Cut false fails on correct replies: call 2 must quote the violating words and name a concrete case (switch <code>VERIFY_WITNESS</code>, ready to measure).</li>
+<li>Close the gap on wrong numbers and wrong policy details, where the baseline still catches slightly more.</li>
 <li>Retrieve the closest labelled examples per reply instead of a fixed set.</li>
 <li>Measure transfer on edit types not in dev (leave-one-edit-type-out).</li>
 </ul>

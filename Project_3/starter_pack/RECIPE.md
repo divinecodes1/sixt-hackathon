@@ -141,6 +141,20 @@ off or to hint mode if the new criterion does not reward it) and picks new examp
 | Baseline | *TBD (arrives about 14:30)* | | |
 | Ours, recipe unchanged | *TBD (arrives about 14:30)* | | |
 
+**Rehearsal on two mock criteria (12:35, one run each, `results/mock_{numbers,filler}_report.txt`).** Relabelled dev
+data, built by `.claude/skills/p3-mock-criterion-rehearsal/scripts/make_mocks.py`; labels come from construction and
+are approximate. `prepare()` chose verdict mode for the numbers mock and switched the rule off for the filler mock.
+
+| Mock criterion | baseline combined | ours combined | ours catch | ours keep |
+|---|---|---|---|---|
+| numbers ("a number differs from the policy", 81 cases) | 0.933 | 0.974 | 1.000 | 0.950 |
+| filler ("unnecessary pleasantries or filler", 65 cases) | 0.543 | 0.776 | 0.825 | 0.733 |
+
+Most of the remaining errors are in the mock labels, not the judge: on the filler mock, 5 "pass" originals end with
+"we hope you enjoy your trip" in some language (real filler), and on the numbers mock the 4 false fails are "half the
+daily rate" edits labelled harmless. Raw catch is 1.000 on both. The judge does flag openers when the criterion is
+about them, so the invariance wording is not secretly criterion-1-specific.
+
 ## What did not work
 - **Evidence switches did not help** on the fast subset (base 0.716): `C_evidence` 0.700, `H_hedge` 0.700,
   `V_deanchor` 0.680. All four together (`CKHV`) scored lowest on both subsets it ran on. They stay off.
