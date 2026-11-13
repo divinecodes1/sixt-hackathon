@@ -27,3 +27,5 @@ Every number below is produced by score.py.
 | 11-13 14:00 | T_trust_reject, criterion 2 | c2 dev (73 pairs) | 0.863 | 0.833 | 0.895 | 0.771 | 1.000 | n/a | 169 calls per run, 0 parse failures; shipped judge 0.776 on the same pairs |
 | 11-13 14:06 | shipped (TRUST_VERIFY_REJECT), run_dev.sh, criterion 2 | c2 dev (73 pairs) | 0.883 | 0.867 | 0.900 | 0.788 | 1.000 | n/a | same code as the 14:00 row (0.863): between-pair noise 0.020 |
 | 11-13 14:05 | shipped (TRUST_VERIFY_REJECT), run_dev.sh, criterion 1 | dev (dev_pairs.jsonl) | 0.845 | 0.762 | 0.949 | 0.789 | 1.000 | 1.57 | 369 calls per run, 1 parse failure per run |
+| 11-13 14:21 | shipped + coverage guard (call 2 must answer every finding), run_dev.sh, criterion 1 | dev (226) | 0.846 | 0.754 | 0.962 | 0.782 | 1.000 | 1.57 | kept: 5 cases differ from 14:06 (3 newly passed, 2 newly failed), 370 vs 369 calls: noise between sessions |
+| 11-13 14:21 | shipped + coverage guard, run_dev.sh, criterion 2 | c2 dev (73) | 0.863 | 0.833 | 0.895 | 0.771 | 1.000 | n/a | kept: verdicts identical to the 14:00 pair of the same code without the guard |
