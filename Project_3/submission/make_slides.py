@@ -21,6 +21,7 @@ OURS = [("Ours, shipped", os.path.join(RES, "dev_pairs_report.txt")),
 C2_OURS = os.path.join(RES, "c2_dev_pairs_report.txt")            # written by run_dev.sh on the surprise criterion
 C2_BASE = os.path.join(RES, "c2_vs_baseline_report.txt")          # score.py ... --baseline (optional)
 C2_UNCHANGED = os.path.join(RES, "c2_unchanged_vs_baseline_report.txt")  # the judge before 14:05, run on criterion 2
+WITNESS = os.path.join(RES, "exp_W_witness_dev_dev_pairs_report.txt")  # call 2 with witness, before TRUST_VERIFY_REJECT
 REPEATS = [os.path.join(RES, "guard_c1_report.txt"), os.path.join(RES, "guard_c2_report.txt")]  # same judge, 14:21
 REPO = "github.com/divinecodes1/sixt-hackathon"
 
@@ -79,36 +80,59 @@ def bars(groups: list[str], series: list[tuple[str, str, list[float]]], w=560, h
     return "".join(s)
 
 
-PIPELINE = f"""<svg viewBox="0 0 1150 250" width="1150" height="250" font-family="Arial" role="img">
-<defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
-<path d="M0,0 L10,5 L0,10 z" fill="{DARK}"/></marker></defs>
-<g font-size="17" text-anchor="middle">
-<rect x="0" y="70" width="190" height="100" rx="10" fill="#fff" stroke="{GREY}" stroke-width="2"/>
-<text x="95" y="105" font-weight="bold">prepare()</text><text x="95" y="130">examples + rule mode</text>
-<text x="95" y="152">from labelled pairs</text>
-<rect x="240" y="70" width="190" height="100" rx="10" fill="#fff" stroke="{DARK}" stroke-width="2"/>
-<text x="335" y="105" font-weight="bold">Number rule</text><text x="335" y="130">code, 0 calls</text>
-<text x="335" y="152">self-validated</text>
-<rect x="480" y="70" width="210" height="100" rx="10" fill="{ORANGE}"/>
-<text x="585" y="100" font-weight="bold" fill="#fff">Call 1</text>
-<text x="585" y="125" fill="#fff">claim by claim:</text><text x="585" y="147" fill="#fff">conditions kept /</text>
-<text x="585" y="167" fill="#fff">dropped (JSON)</text>
-<rect x="740" y="70" width="180" height="100" rx="10" fill="{ORANGE}" opacity="0.85"/>
-<text x="830" y="105" font-weight="bold" fill="#fff">Call 2</text><text x="830" y="130" fill="#fff">verify suspected</text>
-<text x="830" y="152" fill="#fff">fails only</text>
-<rect x="970" y="70" width="180" height="100" rx="10" fill="{ORANGE}" opacity="0.65"/>
-<text x="1060" y="105" font-weight="bold" fill="#fff">Call 3</text><text x="1060" y="130" fill="#fff">fallback only</text>
-<text x="1060" y="152" fill="#fff">if call 2 unreadable</text>
-</g>
-<g stroke="{DARK}" stroke-width="2" marker-end="url(#a)">
-<line x1="190" y1="120" x2="236" y2="120"/><line x1="430" y1="120" x2="476" y2="120"/>
-<line x1="690" y1="120" x2="736" y2="120"/><line x1="920" y1="120" x2="966" y2="120"/></g>
-<g font-size="16" fill="{DARK}" text-anchor="middle">
-<text x="335" y="205">unknown number → FAIL</text><text x="585" y="205">no finding → PASS (1 call)</text>
-<text x="830" y="205">confirmed → FAIL · none → PASS</text><text x="1060" y="205">verdict decided</text></g>
-<text x="575" y="30" font-size="18" text-anchor="middle" fill="{DARK}">verdict computed in code · one reply per call ·
-no state · ≤ 3 calls · claude-haiku-4.5, temperature 0</text>
-</svg>"""
+def _box(x, y, w, h, lines, fill, stroke, color, bold_first=True, size=16, rx=10, dash=""):
+    """A rounded box with centred lines of text (first line bold)."""
+    out = [f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rx}" fill="{fill}" stroke="{stroke}" stroke-width="2"'
+           f'{f" stroke-dasharray={chr(34)}{dash}{chr(34)}" if dash else ""}/>']
+    top = y + h / 2 - (len(lines) - 1) * (size + 4) / 2 + size * 0.35
+    for i, t in enumerate(lines):
+        wt = ' font-weight="bold"' if bold_first and i == 0 else ""
+        out.append(f'<text x="{x + w / 2}" y="{top + i * (size + 4):.1f}" font-size="{size}"{wt} fill="{color}" '
+                   f'text-anchor="middle">{html.escape(t)}</text>')
+    return "".join(out)
+
+
+PASS_BG, PASS_LINE, FAIL_BG, FAIL_LINE, CODE_BG = "#e6f4ea", "#188038", "#fdecea", "#d93025", "#f1f3f4"
+
+
+def arch_svg() -> str:
+    """Decision paths of the shipped judge (TRUST_VERIFY_REJECT on, off-switches left out). Mirrors docs/ARCHITECTURE.md."""
+    s = [f'<svg viewBox="0 0 1180 400" width="1120" height="370" font-family="Arial" role="img">'
+         f'<defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">'
+         f'<path d="M0,0 L10,5 L0,10 z" fill="{DARK}"/></marker></defs>']
+    s.append(_box(0, 0, 380, 46, ["prepare(): examples + rule mode, from the labelled pairs"], "#fff", GREY, DARK,
+                  bold_first=False, size=15, dash="6 4"))
+    s.append(_box(0, 110, 150, 110, ["One reply", "+ criterion", "+ policy"], CODE_BG, "#5f6368", DARK))
+    s.append(_box(190, 110, 160, 110, ["Number rule", "code · 0 calls", "self-validated"], CODE_BG, "#5f6368", DARK))
+    s.append(_box(390, 110, 220, 110, ["Call 1", "claim by claim (JSON):", "conditions kept / dropped,", "certainty · scope"],
+                  ORANGE, ORANGE, "#fff", size=15))
+    s.append(_box(680, 110, 220, 110, ["Call 2 · verify", "fresh context: exact", "reply quote + concrete", "misleading case"],
+                  ORANGE, ORANGE, "#fff", size=15))
+    s.append(_box(970, 110, 210, 110, ["Call 3 · fallback", "holistic, with examples", "rarely needed"],
+                  "#ffa366", "#ffa366", "#fff", size=15))
+    s.append(f'<g stroke="{DARK}" stroke-width="2" fill="none" marker-end="url(#a)">'
+             f'<line x1="270" y1="46" x2="270" y2="106"/>'
+             f'<line x1="150" y1="165" x2="186" y2="165"/><line x1="350" y1="165" x2="386" y2="165"/>'
+             f'<line x1="610" y1="165" x2="676" y2="165"/><line x1="900" y1="165" x2="966" y2="165"/>'
+             f'<path d="M500,110 C500,60 1075,60 1075,106"/>'
+             f'<line x1="445" y1="220" x2="445" y2="276"/><line x1="565" y1="220" x2="565" y2="276"/>'
+             f'<line x1="735" y1="220" x2="735" y2="276"/><line x1="855" y1="220" x2="855" y2="276"/>'
+             f'<line x1="1075" y1="220" x2="1075" y2="276"/></g>')
+    s.append(f'<g font-size="13" fill="{DARK}" text-anchor="middle"><text x="790" y="66">call 1 unreadable</text>'
+             f'<text x="643" y="155">violation</text><text x="935" y="155">unclear</text></g>')
+    s.append(_box(385, 280, 120, 72, ["FAIL · 1 call", "unknown number", "not cleared"], FAIL_BG, FAIL_LINE, DARK, size=14))
+    s.append(_box(515, 280, 100, 72, ["PASS · 1 call", "no claim", "violates"], PASS_BG, PASS_LINE, DARK, size=14))
+    s.append(_box(675, 280, 120, 72, ["FAIL · 2 calls", "confirmed, quote", "found in reply"], FAIL_BG, FAIL_LINE, DARK, size=14))
+    s.append(_box(805, 280, 100, 72, ["PASS · 2 calls", "all answered,", "none proven"], PASS_BG, PASS_LINE, DARK, size=14))
+    s.append(_box(970, 280, 210, 72, ["PASS / FAIL · 3 calls", "decided by call 3"], CODE_BG, "#5f6368", DARK, size=14))
+    s.append(f'<text x="590" y="390" font-size="16" text-anchor="middle" fill="{DARK}">verdict computed in code · '
+             f'one reply per call · no state between calls · at most 3 calls · claude-haiku-4.5, temperature 0</text>')
+    s.append("</svg>")
+    return "".join(s)
+
+
+DEMO_URL = "divinecodes-judge-the-judge.vercel.app"
+DEMO_IMG = "demo_screenshot.png"  # made by make_demo_screenshot.mjs from the live site
 
 
 def main() -> None:
@@ -152,6 +176,8 @@ def main() -> None:
     cond_base = base["types"].get("condition_removal", {}).get("catch", "n/a")
     shipped = runs[0][1]
     cond_ours = shipped["types"].get("condition_removal", {}).get("catch", "n/a")
+    w = parse(WITNESS) or {"types": {}}
+    cond_before = w["types"].get("condition_removal", {}).get("catch", "n/a")
     orig_pass = " → ".join(f3(r.get("orig_pass")) for _, r in reversed(runs))
 
     page = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Judge the Judge · Divinecodes</title>
@@ -199,15 +225,14 @@ checked in code. Nothing about the criterion is hard-coded; examples and rule mo
 </section>
 
 <section>
-<div class="kicker">METHOD</div>
-<h1>Code for facts, the LLM for meaning, <span class="accent">code for the verdict</span></h1>
-{PIPELINE}
-<ul style="margin-top:6px">
-<li style="font-size:16pt"><b>Self-validating rule:</b> a number not in the policy fails the reply, only if <code>prepare()</code> sees it never fire on a pass example of the current criterion; otherwise hint or off.</li>
-<li style="font-size:16pt"><b>Verify only suspected fails</b> in a fresh context. Call 2 may confirm a fail only by quoting the reply's exact words (checked in code) and naming a concrete misleading case. If it proves none, the reply passes; a third call only if call 2's answer is unreadable or incomplete.</li>
-<li style="font-size:16pt">Same code for the surprise criterion: only <code>--criterion</code> and <code>--dev</code> change.</li>
+<div class="kicker">ARCHITECTURE</div>
+<h1>LLM for meaning, <span class="accent">code for the verdict</span></h1>
+{arch_svg()}
+<ul style="margin-top:4px">
+<li style="font-size:15pt"><b>Self-validating rule:</b> an unknown number fails a reply only if <code>prepare()</code> sees the rule never fire on a pass example of the current criterion.</li>
+<li style="font-size:15pt"><b>Verify suspected fails only:</b> call 2 must quote the reply's exact words (checked in code). No proof → PASS. Same code for any criterion: only <code>--criterion</code> and <code>--dev</code> change.</li>
 </ul>
-<div class="foot">starter_pack/final_judge.py · recipe: starter_pack/RECIPE.md</div>
+<div class="foot">starter_pack/final_judge.py · recipe: starter_pack/RECIPE.md · full diagram: docs/ARCHITECTURE.md</div>
 </section>
 
 <section>
@@ -224,22 +249,22 @@ on dev errors, so dev gains are an upper bound. “repeat” = same verdict on t
 </section>
 
 <section>
-<div class="kicker">FOR SIXT</div>
-<h1>A release gate for chatbot changes, <span class="accent">with the reason attached</span></h1>
-<ul>
-<li>Run every candidate chatbot version against the policy before release; a reply that drops a condition or raises
-certainty is blocked.</li>
-<li>Each fail carries the quoted reply words and the policy clause, so a reviewer decides in seconds.</li>
-<li>The recipe takes any new criterion plus a few labelled examples, through <code>--criterion</code> and <code>--dev</code>, with no criterion-specific code (run on the surprise criterion).</li>
-</ul>
-<h2>Next steps</h2>
-<ul>
-<li>Win back dropped-condition catch on criterion 1 (0.800 before the 14:05 change, 0.667 now) without the call-3 false fails.</li>
-<li>Close the gap on wrong policy details, where the baseline still catches more on criterion 1.</li>
-<li>Retrieve the closest labelled examples per reply instead of a fixed set.</li>
-<li>Measure transfer on edit types not in dev (leave-one-edit-type-out).</li>
-</ul>
-<div class="foot">Team Divinecodes · {REPO}</div>
+<div class="kicker">LIVE DEMO · FOR SIXT</div>
+<h1>A release gate, <span class="accent">with the reason attached</span></h1>
+<div class="cols">
+<div><img src="{DEMO_IMG}" alt="Live demo: the original reply passes, the 'always' edit fails" style="height:5.15in;border:1px solid #ddd;border-radius:8px"></div>
+<div style="flex:1">
+<p style="font-size:15pt;margin:0 0 6px"><b>Live:</b> {DEMO_URL}. Real claude-haiku-4.5, every call shown. Here “usually” → “always”: original PASS, edit FAIL.</p>
+<ul style="padding-left:22px;margin:0">
+<li style="font-size:15pt">Run each chatbot version against the policy before release; replies that drop a condition or raise certainty are blocked.</li>
+<li style="font-size:15pt">Every fail quotes the reply and the policy clause, so a reviewer decides in seconds.</li>
+<li style="font-size:15pt">New criterion = new <code>--criterion</code> + a few labelled examples, no new code.</li></ul>
+<h2 style="font-size:16pt;margin-top:10px">Next steps</h2>
+<ul style="padding-left:22px;margin:0">
+<li style="font-size:14pt">Win back dropped-condition catch on criterion 1 ({cond_before} before the 14:05 change, {cond_ours} now).</li>
+<li style="font-size:14pt">Retrieve the closest labelled examples per reply; measure leave-one-edit-type-out.</li></ul>
+</div></div>
+<div class="foot">Team Divinecodes · {REPO} · demo: {DEMO_URL}</div>
 </section>
 </body></html>"""
     with open(os.path.join(HERE, "slides.html"), "w", encoding="utf-8") as f:
