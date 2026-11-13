@@ -23,3 +23,6 @@ Project_2/synthetic/
 Project_2/results/nowcast_*.csv
 Project_3/PLAN.md
 Project_3/submission/make_narrated_video.py
+Project_3/hidden_cases*
+Project_3/**/hidden_cases*
+Project_3/hidden/

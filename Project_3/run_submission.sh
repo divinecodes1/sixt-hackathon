@@ -38,7 +38,7 @@ done
 [ "$fail" = 0 ] || exit 1
 # Every scored log must show temperature 0 kept and only claude-haiku-4.5 (run_judge.py prints this line).
 for n in criterion1_run1 criterion2_run1 criterion1_run2 criterion2_run2; do
-  line="$(grep -h "temperature_dropped" "$OUT/$n.log" | tail -1)"
+  line="$(grep -h "temperature_dropped" "$OUT/$n.log" | tail -1 || true)"
   echo "$n: $line"
   case "$line" in
     *"temperature_dropped 0,"*"['claude-haiku-4.5']"*) ;;
