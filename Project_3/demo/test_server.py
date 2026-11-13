@@ -16,6 +16,20 @@ import server  # noqa: E402
 import test_final_judge as mock_judge  # noqa: E402
 
 
+class Redact(unittest.TestCase):
+    def test_error_never_shows_key_or_gateway(self):
+        env = {"JUDGE_LLM_API_KEY": "sk-testKEY_123456", "JUDGE_LLM_BASE_URL": "https://gw.invalid"}
+        old = {k: os.environ.get(k) for k in env}
+        os.environ.update(env)
+        try:
+            msg = server._redact("ValueError: unknown url type: 'sk-testKEY_123456/chat/completions' https://gw.invalid sk-otherTOKEN99")
+        finally:
+            for k, v in old.items():
+                os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+        self.assertNotIn("sk-", msg)
+        self.assertNotIn("gw.invalid", msg)
+
+
 class DemoHTTP(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

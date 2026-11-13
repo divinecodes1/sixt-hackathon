@@ -43,6 +43,15 @@ def _load_env(path: str) -> None:
                 os.environ[m[1]] = m[2].strip("'\"")
 
 
+def _redact(msg: str) -> str:
+    """Never show a secret in an error: mask the key and gateway values, and any sk- style token."""
+    for name in ("JUDGE_LLM_API_KEY", "JUDGE_LLM_BASE_URL"):
+        v = os.environ.get(name, "")
+        if len(v) >= 6:
+            msg = msg.replace(v, f"[{name}]")
+    return re.sub(r"sk-[A-Za-z0-9_\-]{6,}", "[redacted]", msg)
+
+
 def _jsonl(path: str) -> list[dict]:
     with open(path, encoding="utf-8") as f:
         return [json.loads(line) for line in f if line.strip()]
@@ -159,7 +168,7 @@ class Demo:
             try:
                 out["verdict"] = fj.judge(question, reply, lang, self.data[cid]["criterion"], self.policy)
             except Exception as e:  # noqa: BLE001 - shown in the UI; an outage is not a verdict
-                out["error"] = f"{type(e).__name__}: {e}"
+                out["error"] = _redact(f"{type(e).__name__}: {e}")
             out.update(calls=self.calls, path=self.path, ms=round((time.time() - t0) * 1000))
             return out
 
